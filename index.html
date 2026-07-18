@@ -8,8 +8,8 @@
     <style>
         .icon { margin-right: 6px; color: var(--accent-color); }
         :root { --bg-color: #121212; --card-color: #1e1e1e; --accent-color: #f39c12; --success-color: #2ecc71; --gamble-color: #9b59b6; --border-color: #2c2c2c; }
-        body { font-family: Arial, sans-serif; background-color: var(--bg-color); color: #fff; margin: 0; padding: 10px; }
-        .game-container { max-width: 450px; margin: auto; background: var(--card-color); border-radius: 12px; padding: 15px; box-shadow: 0 8px 24px rgba(0,0,0,0.5); }
+        body { font-family: Arial, sans-serif; background-color: var(--bg-color); color: #fff; margin: 0; padding: 10px; background-image: linear-gradient(180deg, rgba(18,18,18,0.55) 0%, rgba(18,18,18,0.65) 55%, rgba(18,18,18,0.92) 100%), url("Gemini_Generated_Image_m3jjprm3jjprm3jj.png"); background-repeat: no-repeat; background-position: bottom center; background-size: cover; background-attachment: fixed; }
+        .game-container { max-width: 450px; margin: auto; background: rgba(30,30,30,0.9); border-radius: 12px; padding: 15px; box-shadow: 0 8px 24px rgba(0,0,0,0.5); backdrop-filter: blur(2px); }
         h1 { text-align: center; color: var(--accent-color); font-size: 22px; margin: 0 0 10px 0; }
 
         /* Tab Navigation Styles */
@@ -106,6 +106,34 @@
         @keyframes confettiFall {
             to { transform: translateY(110vh) rotate(600deg); opacity: 0; }
         }
+
+        /* Minispiel */
+        #minigame-field {
+            background: radial-gradient(ellipse at 50% 100%, rgba(243,156,18,0.18), transparent 65%), linear-gradient(180deg, #12121f, #050507);
+        }
+        .mg-bottle-inner {
+            display: inline-block;
+            font-size: 30px;
+            animation: mgSpin 1.3s linear infinite;
+            filter: drop-shadow(0 3px 4px rgba(0,0,0,0.5));
+        }
+        @keyframes mgSpin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        .mg-catch-pop {
+            position: absolute;
+            color: var(--success-color);
+            font-weight: bold;
+            font-size: 17px;
+            pointer-events: none;
+            animation: mgPop 0.6s ease-out forwards;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.6);
+        }
+        @keyframes mgPop {
+            0% { opacity: 1; transform: translateY(0) scale(1); }
+            100% { opacity: 0; transform: translateY(-35px) scale(1.5); }
+        }
     </style>
 </head>
 <body>
@@ -133,6 +161,8 @@
     <!-- TAB: STADT (Hauptscreen) -->
     <div id="tab-stadt" class="tab-content active">
         <button id="btn-collect-money" class="clicker-btn" onclick="clickForMoney(event)"><i class="fas fa-coins"></i> Auf dem Marktplatz schnorren (+0,05 €)</button>
+
+        <button id="btn-minigame" class="clicker-btn" style="background:#3498db;" onclick="openMinigame()"><i class="fas fa-bullseye"></i> Flaschen fangen (Bonus-Minispiel)</button>
 
         <div class="level-container">
             <button id="btn-lvl-1" class="level-btn" onclick="buyLevels(1)">+1 Level<br><span id="cost-lvl-1">1.50 €</span></button>
@@ -283,6 +313,22 @@
         <div class="event-text" id="event-text"></div>
         <div class="event-reward" id="event-reward"></div>
         <button class="event-btn" onclick="closeEvent()">Einsammeln</button>
+    </div>
+</div>
+
+<!-- Minispiel Popup -->
+<div id="minigame-overlay" class="event-overlay">
+    <div class="event-box" style="max-width:340px;">
+        <div class="event-icon">🎯</div>
+        <div class="event-text" style="margin-bottom:10px;">Flaschen fangen!</div>
+        <div class="progress-box" style="display:block; margin-bottom:10px;">
+            <div id="mg-time-bar" class="bar" style="background:#3498db; width:100%;"></div>
+            <div id="mg-timer-text" class="prog-text"></div>
+        </div>
+        <div style="text-align:center; font-size:24px; font-weight:bold; color:var(--accent-color); margin-bottom:8px;">🍾 <span id="mg-score">0</span></div>
+        <div id="minigame-field" style="position:relative; width:100%; height:320px; border-radius:10px; overflow:hidden; border:2px solid var(--accent-color);"></div>
+        <div id="mg-result" style="margin-top:10px; font-size:14px; color: var(--success-color); font-weight:bold; text-align:center; min-height:20px;"></div>
+        <button class="event-btn" style="margin-top:10px;" onclick="closeMinigame()">Schließen</button>
     </div>
 </div>
 
@@ -458,7 +504,8 @@
         ordnungsamtProgress: 0, loginStreak: 0, lastLoginDate: '',
         activeGear: 'none', reputation: 0, fightEnd: 0,
         playerName: null, userId: null,
-        clanId: null, clanName: null
+        clanId: null, clanName: null,
+        lastMinigameTime: 0
     };
 
     // ---- Visuelle Effekte ----
@@ -484,6 +531,97 @@
             document.body.appendChild(el);
             setTimeout(() => el.remove(), 3800);
         }
+    }
+
+    // ---- Minispiel: Flaschen fangen ----
+    const MINIGAME_COOLDOWN = 5 * 60 * 1000;
+    const MINIGAME_DURATION = 15;
+    let minigameActive = false;
+    let minigameScore = 0;
+    let minigameTimerHandle = null;
+    let minigameSpawnHandle = null;
+
+    function openMinigame() {
+        let now = Date.now();
+        let remaining = MINIGAME_COOLDOWN - (now - (state.lastMinigameTime || 0));
+        if (remaining > 0) {
+            alert('Noch ' + Math.ceil(remaining / 1000) + 's bis zum nächsten Versuch.');
+            return;
+        }
+        minigameActive = true;
+        minigameScore = 0;
+        let timeLeft = MINIGAME_DURATION;
+        document.getElementById('mg-score').innerText = '0';
+        document.getElementById('mg-result').innerHTML = '';
+        document.getElementById('minigame-field').innerHTML = '';
+        let bar = document.getElementById('mg-time-bar');
+        if (bar) bar.style.width = '100%';
+        let timerText = document.getElementById('mg-timer-text');
+        if (timerText) timerText.innerText = timeLeft + 's';
+        document.getElementById('minigame-overlay').style.display = 'flex';
+
+        minigameSpawnHandle = setInterval(spawnBottle, 550);
+        minigameTimerHandle = setInterval(() => {
+            timeLeft--;
+            if (timerText) timerText.innerText = Math.max(0, timeLeft) + 's';
+            if (bar) bar.style.width = Math.max(0, (timeLeft / MINIGAME_DURATION) * 100) + '%';
+            if (timeLeft <= 0) endMinigame();
+        }, 1000);
+    }
+
+    function spawnBottle() {
+        let field = document.getElementById('minigame-field');
+        if (!field || !minigameActive) return;
+        let wrapper = document.createElement('div');
+        wrapper.style.position = 'absolute';
+        wrapper.style.left = (Math.random() * 85) + '%';
+        wrapper.style.top = '-30px';
+        wrapper.style.cursor = 'pointer';
+        wrapper.style.transition = 'top ' + (1.6 + Math.random() * 1.2) + 's linear';
+        wrapper.innerHTML = '<span class="mg-bottle-inner">🍾</span>';
+        wrapper.onclick = function () {
+            if (!minigameActive) return;
+            minigameScore++;
+            let scoreEl = document.getElementById('mg-score');
+            if (scoreEl) scoreEl.innerText = minigameScore;
+            let pop = document.createElement('div');
+            pop.className = 'mg-catch-pop';
+            pop.innerText = '+1';
+            pop.style.left = wrapper.style.left;
+            pop.style.top = wrapper.style.top;
+            field.appendChild(pop);
+            setTimeout(() => pop.remove(), 650);
+            wrapper.remove();
+        };
+        field.appendChild(wrapper);
+        setTimeout(() => { wrapper.style.top = '340px'; }, 20);
+        setTimeout(() => { if (wrapper.parentNode) wrapper.remove(); }, 3200);
+    }
+
+    function endMinigame() {
+        minigameActive = false;
+        clearInterval(minigameSpawnHandle);
+        clearInterval(minigameTimerHandle);
+        state.lastMinigameTime = Date.now();
+        let bonusMoney = minigameScore * 0.20 * getMultiplier();
+        let bonusBottles = Math.min(state.maxBottles - state.bottles, minigameScore);
+        addMoney(bonusMoney);
+        state.bottles = Math.min(state.maxBottles, state.bottles + bonusBottles);
+        saveGame();
+        let stars = minigameScore >= 20 ? '⭐⭐⭐' : minigameScore >= 12 ? '⭐⭐' : minigameScore >= 5 ? '⭐' : '';
+        let resultEl = document.getElementById('mg-result');
+        if (resultEl) resultEl.innerHTML = (stars ? stars + '<br>' : '') + minigameScore + ' Flaschen gefangen! +' + bonusMoney.toFixed(2) + ' € und +' + bonusBottles + ' Flaschen';
+        if (minigameScore >= 15) launchConfetti(25);
+    }
+
+    function closeMinigame() {
+        minigameActive = false;
+        clearInterval(minigameSpawnHandle);
+        clearInterval(minigameTimerHandle);
+        let overlay = document.getElementById('minigame-overlay');
+        if (overlay) overlay.style.display = 'none';
+        let field = document.getElementById('minigame-field');
+        if (field) field.innerHTML = '';
     }
 
     // ---- TAB LOGIC ----
@@ -813,8 +951,23 @@
             let members = snap.docs.map(d => d.data());
             members.sort((a, b) => (b.reputation || 0) - (a.reputation || 0));
             let total = members.reduce((sum, m) => sum + (m.reputation || 0), 0);
-            boardEl.innerHTML = 'Mitglieder: ' + members.length + ' · Kampfpunkte gesamt: 👊' + total + '<br>'
-                + members.map((m, i) => (i + 1) + '. ' + escapeHtml(m.name) + ' – 👊' + (m.reputation || 0)).join('<br>');
+
+            let headerHtml = '<div style="display:flex; justify-content:space-between; font-size:10px; color:#888; margin-bottom:6px; border-bottom:1px solid var(--border-color); padding-bottom:6px;">'
+                + '<span>' + members.length + ' Mitglieder</span>'
+                + '<span>👊 ' + total + ' Kampfpunkte gesamt</span>'
+                + '</div>';
+
+            let rowsHtml = members.map((m, i) => {
+                let highlight = (m.name === state.playerName) ? "color:#f39c12; font-weight:bold;" : "";
+                let achv = (m.achievements != null) ? (' · 🏅' + m.achievements) : '';
+                let money = (m.money != null) ? (' · ' + m.money.toFixed(2) + ' €') : '';
+                return '<div style="display:flex; justify-content:space-between; padding:2px 0; ' + highlight + '">'
+                    + '<span>' + (i + 1) + '. ' + escapeHtml(m.name) + '</span>'
+                    + '<span>👊 ' + (m.reputation || 0) + ' · Lvl ' + m.level + achv + money + '</span>'
+                    + '</div>';
+            }).join('');
+
+            boardEl.innerHTML = headerHtml + (rowsHtml || '<div style="color:#888;">Noch keine Mitglieder mit Punkten.</div>');
         } catch (e) {
             boardEl.innerHTML = "Clan-Bestenliste momentan nicht verfügbar.";
         }
@@ -1217,6 +1370,20 @@
         document.getElementById('money').innerText = state.money.toFixed(2) + " €";
         let collectBtn = document.getElementById('btn-collect-money');
         if (collectBtn) collectBtn.innerHTML = '<i class="fas fa-coins"></i> Auf dem Marktplatz schnorren (+' + (getClickAmount() * getMultiplier()).toFixed(2) + ' €)';
+
+        let mgBtn = document.getElementById('btn-minigame');
+        if (mgBtn && !minigameActive) {
+            let mgRemaining = MINIGAME_COOLDOWN - (now - (state.lastMinigameTime || 0));
+            if (mgRemaining > 0) {
+                mgBtn.disabled = true;
+                let mins = Math.floor(mgRemaining / 60000);
+                let secs = Math.ceil((mgRemaining % 60000) / 1000);
+                mgBtn.innerHTML = '<i class="fas fa-bullseye"></i> Nächster Versuch in ' + mins + ':' + (secs < 10 ? '0' : '') + secs;
+            } else {
+                mgBtn.disabled = false;
+                mgBtn.innerHTML = '<i class="fas fa-bullseye"></i> Flaschen fangen (Bonus-Minispiel)';
+            }
+        }
         document.getElementById('bottles').innerText = state.bottles + " / " + state.maxBottles;
         document.getElementById('lvl-display').innerText = state.level + " / 1000";
         document.getElementById('btn-sell').disabled = state.bottles <= 0;
