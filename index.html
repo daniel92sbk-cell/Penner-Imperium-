@@ -245,6 +245,13 @@
 
     <!-- TAB: KONTO / ACC -->
     <div id="tab-konto" class="tab-content">
+        <div class="section-title"><i class="fas fa-id-badge icon"></i>Spielername</div>
+        <div class="job-card">
+            <input id="nickname-input" type="text" placeholder="Dein Spielername" class="login-input" maxlength="20">
+            <button class="btn-sm" style="width:100%; background:#e67e22; color:#fff; padding:10px;" onclick="setNickname()">Speichern</button>
+            <div id="nickname-msg" style="text-align:center; font-size:11px; color:var(--success-color); margin-top:6px;"></div>
+        </div>
+
         <div class="section-title"><i class="fas fa-medal icon"></i>Erfolge</div>
         <div class="job-card" style="text-align: center;">
             <div id="achievements-count" style="font-size:14px; font-weight:bold; color:var(--accent-color);">0 / 0 Erfolge</div>
@@ -557,6 +564,28 @@
         location.reload();
     }
 
+    function setNickname() {
+        let input = document.getElementById('nickname-input');
+        if (!input) return;
+        let name = input.value.trim().slice(0, 20);
+        if (!name) { alert('Bitte einen Namen eingeben.'); return; }
+        state.playerName = name;
+        saveGame();
+        let statusEl = document.getElementById('login-status');
+        if (statusEl && state.userId) statusEl.innerText = 'Angemeldet als: ' + state.playerName;
+        if (state.userId) {
+            syncLeaderboard();
+            saveGameToCloud();
+        }
+        let msgEl = document.getElementById('nickname-msg');
+        if (msgEl) { msgEl.innerText = 'Gespeichert!'; setTimeout(() => { msgEl.innerText = ''; }, 2000); }
+    }
+
+    function updateNicknameField() {
+        let input = document.getElementById('nickname-input');
+        if (input && state.playerName) input.value = state.playerName;
+    }
+
     // ---- Firestore Kompletter Spielstand ----
     async function saveGameToCloud() {
         if (!window.fbReady || !state.userId) return;
@@ -591,29 +620,31 @@
         let authForms = document.getElementById('auth-forms');
         if (user) {
             let previousUserId = state.userId;
+            let fallbackName = user.displayName || (user.email ? user.email.split('@')[0] : ('Spieler' + Math.floor(Math.random() * 10000)));
             state.userId = user.uid;
-            state.playerName = user.displayName || (user.email ? user.email.split('@')[0] : state.playerName);
+            if (!state.playerName) state.playerName = fallbackName;
             if (statusEl) statusEl.innerText = 'Angemeldet als: ' + state.playerName;
             if (logoutBtn) logoutBtn.style.display = 'block';
             if (authForms) authForms.style.display = 'none';
 
             if (previousUserId !== user.uid) {
                 loadGameFromCloud().then(cloudState => {
+                    let keepUserId = state.userId;
                     if (cloudState) {
-                        let keepUserId = state.userId;
-                        let keepPlayerName = state.playerName;
                         state = Object.assign(state, cloudState);
                         state.userId = keepUserId;
-                        state.playerName = keepPlayerName;
-                        saveGame();
+                        if (!state.playerName) state.playerName = fallbackName;
                     } else {
                         saveGameToCloud();
                     }
                     saveGame();
+                    updateNicknameField();
+                    if (statusEl) statusEl.innerText = 'Angemeldet als: ' + state.playerName;
                     refreshLeaderboard();
                 });
             } else {
                 saveGame();
+                updateNicknameField();
                 refreshLeaderboard();
             }
         } else {
@@ -641,6 +672,7 @@
             state.playerName = "Gast" + Math.floor(Math.random() * 10000);
             saveGame();
         }
+        updateNicknameField();
 
         let now = Date.now();
         state.lastRentTime = now;
@@ -779,10 +811,10 @@
             );
             let snap = await window.fbGetDocs(q);
             let members = snap.docs.map(d => d.data());
-            members.sort((a, b) => b.money - a.money);
-            let total = members.reduce((sum, m) => sum + (m.money || 0), 0);
-            boardEl.innerHTML = 'Mitglieder: ' + members.length + ' · Gesamt: ' + total.toFixed(2) + ' €<br>'
-                + members.map((m, i) => (i + 1) + '. ' + escapeHtml(m.name) + ' – ' + (m.money || 0).toFixed(2) + ' €').join('<br>');
+            members.sort((a, b) => (b.reputation || 0) - (a.reputation || 0));
+            let total = members.reduce((sum, m) => sum + (m.reputation || 0), 0);
+            boardEl.innerHTML = 'Mitglieder: ' + members.length + ' · Kampfpunkte gesamt: 👊' + total + '<br>'
+                + members.map((m, i) => (i + 1) + '. ' + escapeHtml(m.name) + ' – 👊' + (m.reputation || 0)).join('<br>');
         } catch (e) {
             boardEl.innerHTML = "Clan-Bestenliste momentan nicht verfügbar.";
         }
@@ -795,7 +827,7 @@
             if (state.userId) await syncLeaderboard();
             let q = window.fbQuery(
                 window.fbCollection(window.fbDb, "leaderboard"),
-                window.fbOrderBy("money", "desc"),
+                window.fbOrderBy("reputation", "desc"),
                 window.fbLimit(8)
             );
             let snap = await window.fbGetDocs(q);
@@ -808,10 +840,10 @@
                     let highlight = (e.name === state.playerName) ? "color:#f39c12; font-weight:bold;" : "";
                     let prestigeTag = (e.prestige > 0) ? ('P' + e.prestige + ' ') : '';
                     let achv = (e.achievements != null) ? (' · 🏅' + e.achievements) : '';
-                    let rep = (e.reputation) ? (' · 👊' + e.reputation) : '';
+                    let money = (e.money != null) ? (' · ' + e.money.toFixed(2) + ' €') : '';
                     return '<div style="display:flex; justify-content:space-between; padding:2px 0; ' + highlight + '">'
                         + '<span>' + (i + 1) + '. ' + prestigeTag + escapeHtml(e.name) + '</span>'
-                        + '<span>Lvl ' + e.level + ' · ' + e.money.toFixed(2) + ' €' + achv + rep + '</span>'
+                        + '<span>👊 ' + (e.reputation || 0) + ' · Lvl ' + e.level + achv + money + '</span>'
                         + '</div>';
                 }).join('');
             }
