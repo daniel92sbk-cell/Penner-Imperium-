@@ -1,0 +1,1250 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Penner-Imperium v5.1 (Firebase & Tabs & Effekte)</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <style>
+        .icon { margin-right: 6px; color: var(--accent-color); }
+        :root { --bg-color: #121212; --card-color: #1e1e1e; --accent-color: #f39c12; --success-color: #2ecc71; --gamble-color: #9b59b6; --border-color: #2c2c2c; }
+        body { font-family: Arial, sans-serif; background-color: var(--bg-color); color: #fff; margin: 0; padding: 10px; }
+        .game-container { max-width: 450px; margin: auto; background: var(--card-color); border-radius: 12px; padding: 15px; box-shadow: 0 8px 24px rgba(0,0,0,0.5); }
+        h1 { text-align: center; color: var(--accent-color); font-size: 22px; margin: 0 0 10px 0; }
+
+        /* Tab Navigation Styles */
+        .tab-navigation { display: flex; background: #262626; border-radius: 8px; padding: 4px; margin-bottom: 15px; border: 1px solid var(--border-color); gap: 4px; }
+        .tab-btn { flex: 1; padding: 10px 4px; background: transparent; color: #aaa; font-size: 11px; border-radius: 6px; text-align: center; cursor: pointer; font-weight: bold; transition: all 0.2s; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+        .tab-btn i { font-size: 14px; }
+        .tab-btn.active { background: var(--accent-color); color: #121212; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+
+        .section-title { font-size: 12px; text-transform: uppercase; margin: 20px 0 10px 0; color: #888; border-left: 3px solid var(--accent-color); padding-left: 6px; font-weight: bold; }
+        .job-card { background: #262626; padding: 10px; border-radius: 8px; margin-bottom: 10px; border: 1px solid var(--border-color); }
+        .tour-options { display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; margin-top: 5px; }
+        button { border: none; border-radius: 6px; cursor: pointer; font-weight: bold; padding: 10px; transition: background 0.2s, transform 0.05s; }
+        button:active { transform: scale(0.97); }
+        .btn-sm { font-size: 10px; background: #444; color: white; }
+        .clicker-btn { background-color: #2ecc71; color: white; font-size: 16px; width: 100%; margin-bottom: 10px; padding: 15px; position: relative; overflow: visible; }
+        .sell-btn { background-color: #3498db; color: white; width: 100%; font-size: 14px; margin-top: 10px; padding: 12px; }
+        .sell-btn:disabled { background-color: #333; color: #666; cursor: not-allowed; }
+
+        .level-container { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 15px; }
+        .level-btn { background-color: #444; color: #aaa; font-size: 12px; padding: 10px; }
+        .level-btn.affordable { background-color: #e67e22 !important; color: white !important; }
+
+        .shop-btn { background-color: #444; color: #999; cursor: not-allowed; font-size: 11px; padding: 8px 12px; border-radius: 4px; width: 90px; text-align: center; }
+        .shop-btn.affordable { background-color: var(--success-color) !important; color: white !important; cursor: pointer; }
+        .shop-btn.owned { background-color: #222 !important; color: #555 !important; cursor: not-allowed; border: 1px solid #333; }
+        .shop-btn.active-item { background-color: var(--accent-color) !important; color: #1e1e1e !important; cursor: not-allowed; }
+
+        .progress-box { background: #333; height: 20px; width: 100%; border-radius: 5px; margin-bottom: 10px; display: none; overflow: hidden; position: relative; }
+        .bar { height: 100%; width: 0%; background: var(--accent-color); position: relative; overflow: hidden; }
+        .bar::after, .ordnungsamt-fill::after {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; width: 40%; height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.45), transparent);
+            animation: shimmer 1.6s linear infinite;
+        }
+        @keyframes shimmer {
+            0% { transform: translateX(-120%); }
+            100% { transform: translateX(350%); }
+        }
+        .prog-text { position: absolute; width: 100%; text-align: center; font-size: 11px; top: 2px; font-weight: bold; color: #fff; z-index: 5; }
+        .upgrade-list { display: flex; flex-direction: column; gap: 8px; }
+        .upgrade-item { display: flex; justify-content: space-between; align-items: center; background: #222; padding: 10px; border-radius: 6px; border: 1px solid var(--border-color); }
+        .item-info { max-width: 70%; }
+        .item-name { font-weight: bold; font-size: 13px; color: #fff; }
+        .item-desc { font-size: 11px; color: #aaa; margin-top: 2px; }
+
+        .event-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); display: none; align-items: center; justify-content: center; z-index: 1000; padding: 20px; box-sizing: border-box; }
+        .event-box { background: #1e1e1e; border: 2px solid var(--accent-color); border-radius: 14px; padding: 22px; max-width: 320px; text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,0.6); }
+        .event-icon { font-size: 34px; margin-bottom: 8px; }
+        .event-text { font-size: 14px; color: #eee; margin-bottom: 10px; }
+        .event-reward { font-size: 16px; font-weight: bold; color: var(--success-color); margin-bottom: 16px; }
+        .event-btn { background-color: var(--accent-color); color: #1e1e1e; width: 100%; padding: 12px; font-size: 14px; }
+
+        .ordnungsamt-track { background: #333; height: 12px; border-radius: 6px; overflow: hidden; position: relative; }
+        .ordnungsamt-fill { height: 100%; width: 0%; background: linear-gradient(90deg, #e67e22, #e74c3c); transition: width 0.3s; position: relative; overflow: hidden; }
+        .prestige-btn { background: linear-gradient(90deg, #9b59b6, #e67e22); color: #fff; }
+
+        .login-input { width: 100%; padding: 10px; margin-bottom: 8px; border-radius: 6px; border: none; box-sizing: border-box; font-size: 14px; background: #333; color: #fff; }
+        .login-google-btn { background: #4285F4; color: #fff; }
+        .login-status { font-size: 11px; color: #aaa; margin-top: 6px; text-align: center; }
+
+        /* Fliegende Geld-Zahlen */
+        .float-money {
+            position: fixed;
+            pointer-events: none;
+            font-weight: bold;
+            color: var(--success-color);
+            font-size: 17px;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.6);
+            z-index: 5000;
+            animation: floatUp 1.1s ease-out forwards;
+        }
+        @keyframes floatUp {
+            0% { opacity: 1; transform: translate(-50%, 0) scale(1); }
+            70% { opacity: 1; }
+            100% { opacity: 0; transform: translate(-50%, -70px) scale(1.4); }
+        }
+
+        /* Konfetti */
+        .confetti-piece {
+            position: fixed;
+            top: -20px;
+            width: 8px;
+            height: 14px;
+            opacity: 0.95;
+            z-index: 6000;
+            animation-name: confettiFall;
+            animation-timing-function: linear;
+            animation-fill-mode: forwards;
+        }
+        @keyframes confettiFall {
+            to { transform: translateY(110vh) rotate(600deg); opacity: 0; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="game-container">
+    <h1><i class="fas fa-champagne-glasses icon"></i>Penner-Imperium v5.1</h1>
+
+    <!-- Permanente Statusanzeige -->
+    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 10px;">
+        <div class="job-card" style="text-align: center; margin-bottom: 0;"><div style="font-size: 9px; color: #888; font-weight: bold;">LEVEL</div><div id="lvl-display" style="font-size: 14px; color: #e67e22; font-weight: bold;">1 / 1000</div></div>
+        <div class="job-card" style="text-align: center; margin-bottom: 0;"><div style="font-size: 9px; color: #888; font-weight: bold;">KONTOSTAND</div><div id="money" style="font-size: 14px; color: var(--accent-color); font-weight: bold;">0,00 €</div></div>
+        <div class="job-card" style="text-align: center; margin-bottom: 0;"><div style="font-size: 9px; color: #888; font-weight: bold;">TASCHE</div><div id="bottles" style="font-size: 14px; color: var(--accent-color); font-weight: bold;">0 / 20</div></div>
+    </div>
+
+    <div id="flavor-text" style="text-align:center; font-size:11px; color:#777; margin: 8px 0; font-style:italic; min-height: 14px;"></div>
+
+    <!-- Tab Buttons -->
+    <div class="tab-navigation">
+        <div class="tab-btn active" onclick="switchTab('tab-stadt')"><i class="fas fa-city"></i>Stadt</div>
+        <div class="tab-btn" onclick="switchTab('tab-shop')"><i class="fas fa-basket-shopping"></i>Shops</div>
+        <div class="tab-btn" onclick="switchTab('tab-clan')"><i class="fas fa-shield-halved"></i>Kiez & Clan</div>
+        <div class="tab-btn" onclick="switchTab('tab-konto')"><i class="fas fa-user"></i>Konto</div>
+    </div>
+
+    <!-- TAB: STADT (Hauptscreen) -->
+    <div id="tab-stadt" class="tab-content active">
+        <button id="btn-collect-money" class="clicker-btn" onclick="clickForMoney(event)"><i class="fas fa-coins"></i> Auf dem Marktplatz schnorren (+0,05 €)</button>
+
+        <div class="level-container">
+            <button id="btn-lvl-1" class="level-btn" onclick="buyLevels(1)">+1 Level<br><span id="cost-lvl-1">1.50 €</span></button>
+            <button id="btn-lvl-10" class="level-btn" onclick="buyLevels(10)">+10 Level<br><span id="cost-lvl-10">21.75 €</span></button>
+        </div>
+        <button id="btn-prestige" class="btn-sm prestige-btn" style="display:none; width:100%; margin-bottom:10px; padding:10px; font-size:12px;" onclick="doPrestige()"><i class="fas fa-star"></i> Ein neues Leben anfangen (Prestige)</button>
+        <div id="prestige-info" style="text-align:center; font-size:10px; color:#888; margin-bottom:10px;"></div>
+
+        <div class="job-card">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                <div class="section-title" style="margin:0;"><i class="fas fa-user-shield icon"></i>Ordnungsamt im Anmarsch</div>
+                <button class="btn-sm" style="padding:4px 8px; font-size:9px; background:#555;" onclick="hideFromOrdnungsamt()"><i class="fas fa-eye-slash"></i> Verstecken!</button>
+            </div>
+            <div class="ordnungsamt-track"><div id="ordnungsamt-fill" class="ordnungsamt-fill"></div></div>
+        </div>
+
+        <button id="btn-sell" class="sell-btn" onclick="sellBottles()"><i class="fas fa-building-columns"></i> Flaschen am Pfandautomaten abgeben</button>
+
+        <div class="section-title"><i class="fas fa-hand-holding-dollar icon"></i>Organisiertes Schnorren (Geld)</div>
+        <div class="job-card">
+            <div id="beg-prog" class="progress-box"><div id="beg-bar" class="bar" style="background: #2ecc71;"></div><div id="beg-text" class="prog-text"></div></div>
+            <div id="beg-controls" class="tour-options">
+                <button class="btn-sm" onclick="startJob('beg', 1)">1m</button><button class="btn-sm" onclick="startJob('beg', 3)">3m</button>
+                <button class="btn-sm" onclick="startJob('beg', 5)">5m</button><button class="btn-sm" onclick="startJob('beg', 10)">10m</button>
+                <button class="btn-sm" onclick="startJob('beg', 30)">30m</button>
+            </div>
+        </div>
+
+        <div class="section-title"><i class="fas fa-dumpster icon"></i>Große Müll-Tour (Flaschen)</div>
+        <div class="job-card">
+            <div id="tour-prog" class="progress-box"><div id="tour-bar" class="bar"></div><div id="tour-text" class="prog-text"></div></div>
+            <div id="tour-controls" class="tour-options">
+                <button class="btn-sm" onclick="startJob('tour', 1)">1m</button><button class="btn-sm" onclick="startJob('tour', 3)">3m</button>
+                <button class="btn-sm" onclick="startJob('tour', 5)">5m</button><button class="btn-sm" onclick="startJob('tour', 10)">10m</button>
+                <button class="btn-sm" onclick="startJob('tour', 30)">30m</button>
+            </div>
+        </div>
+
+        <div class="section-title"><i class="fas fa-dice icon"></i>Hinterhof-Kartenspiel (Zocken)</div>
+        <div class="job-card">
+            <div id="cards-prog" class="progress-box"><div id="cards-bar" class="bar" style="background: #9b59b6;"></div><div id="cards-text" class="prog-text"></div></div>
+            <div id="cards-controls" class="tour-options">
+                <button class="btn-sm" onclick="startJob('cards', 1)">1m</button><button class="btn-sm" onclick="startJob('cards', 3)">3m</button>
+                <button class="btn-sm" onclick="startJob('cards', 5)">5m</button><button class="btn-sm" onclick="startJob('cards', 10)">10m</button>
+                <button class="btn-sm" onclick="startJob('cards', 30)">30m</button>
+            </div>
+        </div>
+
+        <div class="section-title"><i class="fas fa-music icon"></i>Straßenmusik (Geld & Ruf)</div>
+        <div class="job-card">
+            <div id="street-prog" class="progress-box"><div id="street-bar" class="bar" style="background: #3498db;"></div><div id="street-text" class="prog-text"></div></div>
+            <div id="street-controls" class="tour-options">
+                <button class="btn-sm" onclick="startJob('street', 1)">1m</button><button class="btn-sm" onclick="startJob('street', 3)">3m</button>
+                <button class="btn-sm" onclick="startJob('street', 5)">5m</button><button class="btn-sm" onclick="startJob('street', 10)">10m</button>
+                <button class="btn-sm" onclick="startJob('street', 30)">30m</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- TAB: SHOPS -->
+    <div id="tab-shop" class="tab-content">
+        <div class="section-title"><i class="fas fa-house icon"></i>Unterkünfte (Tasche & Miete passiv)</div>
+        <div class="upgrade-list" id="shop-homes-list"></div>
+
+        <div class="section-title"><i class="fas fa-paw icon"></i>Hinterhof-Zoo (Passive Flaschen)</div>
+        <div class="upgrade-list" id="shop-pets-list"></div>
+
+        <div class="section-title"><i class="fas fa-shield-halved icon"></i>Ausrüstung (Kampfkraft)</div>
+        <div class="upgrade-list" id="shop-gear-list"></div>
+
+        <div class="section-title"><i class="fas fa-user-tie icon"></i>Mitarbeiter (Passives Geld)</div>
+        <div class="upgrade-list" id="shop-employees-list"></div>
+
+        <div class="section-title"><i class="fas fa-car icon"></i>Fuhrpark (Flaschenwert steigern)</div>
+        <div class="upgrade-list" id="shop-cars-list"></div>
+    </div>
+
+    <!-- TAB: KIEZ & CLAN -->
+    <div id="tab-clan" class="tab-content">
+        <div class="section-title"><i class="fas fa-hand-fist icon"></i>Kiez-Kampf (Ruf-Punkte)</div>
+        <div class="job-card">
+            <div style="display:flex; justify-content:space-between; font-size:12px; color:#aaa; margin-bottom:8px;">
+                <span>Kampfkraft: <span id="combat-power" style="color:#fff; font-weight:bold;">1</span></span>
+                <span>Ruf-Punkte: <span id="reputation-display" style="color:var(--accent-color); font-weight:bold;">0</span></span>
+            </div>
+            <button id="btn-fight" class="btn-sm" style="width:100%; padding:12px; font-size:13px; background:#c0392b; color:#fff;" onclick="startFight()">👊 Kämpfen!</button>
+        </div>
+
+        <div class="section-title"><i class="fas fa-users icon"></i>Clan-Sitzung</div>
+        <div class="job-card">
+            <div id="clan-none" style="display:none;">
+                <input id="clan-name-input" type="text" placeholder="Clan-Name" class="login-input">
+                <button class="btn-sm" style="width:100%; margin-bottom:6px; background:#e67e22; color:#fff; padding:10px;" onclick="createClan()">Clan gründen</button>
+                <button class="btn-sm" style="width:100%; background:#3498db; color:#fff; padding:10px;" onclick="joinClan()">Clan beitreten</button>
+            </div>
+            <div id="clan-active" style="display:none;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                    <span id="clan-name-display" style="font-weight:bold; color:var(--accent-color);"></span>
+                    <button class="btn-sm" style="padding:4px 8px; font-size:9px; background:#c0392b; color:#fff;" onclick="leaveClan()">Verlassen</button>
+                </div>
+                <div id="clan-board" style="font-size:11px; color:#ccc;"></div>
+            </div>
+        </div>
+
+        <div class="section-title"><i class="fas fa-trophy icon"></i>Globale Bestenliste</div>
+        <div class="job-card">
+            <div id="leaderboard-list" style="font-size:11px; color:#ccc;">Lade Bestenliste...</div>
+        </div>
+    </div>
+
+    <!-- TAB: KONTO / ACC -->
+    <div id="tab-konto" class="tab-content">
+        <div class="section-title"><i class="fas fa-medal icon"></i>Erfolge</div>
+        <div class="job-card" style="text-align: center;">
+            <div id="achievements-count" style="font-size:14px; font-weight:bold; color:var(--accent-color);">0 / 0 Erfolge</div>
+        </div>
+
+        <div class="section-title"><i class="fas fa-key icon"></i>Cloud-Synchronisierung</div>
+        <div class="job-card">
+            <div id="login-status" class="login-status" style="margin-bottom:10px;">Nicht eingeloggt.</div>
+
+            <div id="auth-forms">
+                <input id="login-email" type="email" placeholder="E-Mail" class="login-input">
+                <input id="login-password" type="password" placeholder="Passwort" class="login-input">
+                <button class="clicker-btn" style="background:#e67e22; font-size:14px; padding:10px; margin-bottom:8px;" onclick="doEmailLogin()">Einloggen / Registrieren</button>
+                <button class="clicker-btn login-google-btn" style="font-size:14px; padding:10px; margin-bottom:8px;" onclick="doGoogleLogin()">🔵 Mit Google anmelden</button>
+            </div>
+
+            <button id="logout-btn" class="clicker-btn" style="background:#555; font-size:14px; padding:10px; display:none;" onclick="doLogout()">Ausloggen</button>
+            <div id="login-error" style="color:#e74c3c; font-size:11px; margin-top:8px; text-align:center;"></div>
+        </div>
+
+        <button class="btn-sm" style="margin-top:20px; width:100%; padding:12px; background:#c0392b;" onclick="resetGame()">🚨 Kompletten Spielstand löschen</button>
+    </div>
+</div>
+
+<!-- Event Popups -->
+<div id="event-overlay" class="event-overlay">
+    <div class="event-box">
+        <div class="event-icon" id="event-icon">🎉</div>
+        <div class="event-text" id="event-text"></div>
+        <div class="event-reward" id="event-reward"></div>
+        <button class="event-btn" onclick="closeEvent()">Einsammeln</button>
+    </div>
+</div>
+
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
+    import {
+        getFirestore, doc, setDoc, getDoc,
+        collection, query, orderBy, limit, getDocs, where
+    } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
+    import {
+        getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword,
+        GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut
+    } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
+
+    const firebaseConfig = {
+        apiKey: "AIzaSyB422tTBVSO2hByoIjHn6c8yGKikLfZsKM",
+        authDomain: "penner-imperium.firebaseapp.com",
+        projectId: "penner-imperium",
+        storageBucket: "penner-imperium.firebasestorage.app",
+        messagingSenderId: "742843793907",
+        appId: "1:742843793907:web:652f4d42415542c9615286"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+    const auth = getAuth(app);
+
+    window.fbDb = db;
+    window.fbAuth = auth;
+    window.fbSetDoc = setDoc;
+    window.fbGetDoc = getDoc;
+    window.fbDoc = doc;
+    window.fbCollection = collection;
+    window.fbQuery = query;
+    window.fbOrderBy = orderBy;
+    window.fbLimit = limit;
+    window.fbGetDocs = getDocs;
+    window.fbWhere = where;
+    window.fbCreateUser = createUserWithEmailAndPassword;
+    window.fbSignIn = signInWithEmailAndPassword;
+    window.fbGoogleProvider = new GoogleAuthProvider();
+    window.fbSignInPopup = signInWithPopup;
+    window.fbSignOut = signOut;
+    window.fbReady = true;
+
+    onAuthStateChanged(auth, (user) => {
+        window.currentUser = user;
+        if (typeof onAuthChanged === 'function') onAuthChanged(user);
+    });
+</script>
+
+<script>
+    // ---- Daten-Tabellen für Shops ----
+    const HOMES = [
+        { id: 'carton',  name: 'Pappkarton',           cost: 8,    capacity: 40,   rent: 0.05 },
+        { id: 'tent',    name: 'Altes Campingzelt',    cost: 22,   capacity: 65,   rent: 0.12 },
+        { id: 'trailer', name: 'Alter Bauwagen',       cost: 45,   capacity: 120,  rent: 0.25 },
+        { id: 'flat',    name: 'Plattenbau-Wohnung',   cost: 110,  capacity: 200,  rent: 0.60 },
+        { id: 'castle',  name: 'Besetztes Schloss',    cost: 250,  capacity: 450,  rent: 1.50 },
+        { id: 'island',  name: 'Luxus-Privatinsel',    cost: 1500, capacity: 1000, rent: 5.00 },
+        { id: 'penthouse', name: 'Penthouse mit Dachterrasse', cost: 4000, capacity: 2000, rent: 12.00 },
+        { id: 'space',   name: 'Privat-Raumstation',   cost: 10000, capacity: 5000, rent: 30.00 }
+    ];
+
+    const PETS = [
+        { id: 'rabbit',   name: 'Flinker Hase',           cost: 10,   chance: 0.05 },
+        { id: 'cat',      name: 'Straßen-Mieze',          cost: 25,   chance: 0.10 },
+        { id: 'goat',     name: 'Meckernde Ziege',        cost: 40,   chance: 0.16 },
+        { id: 'dog',      name: 'Promenaden-Mischung',    cost: 60,   chance: 0.24 },
+        { id: 'raccoon',  name: 'Zahmer Waschbär',        cost: 120,  chance: 0.38 },
+        { id: 'elephant', name: 'Mächtiger Elefant',      cost: 500,  chance: 0.60 },
+        { id: 'dragon',   name: 'Scharlachroter Drache',  cost: 1000, chance: 0.90 },
+        { id: 'phoenix',  name: 'Wiedergeborener Phönix', cost: 3000, chance: 0.98 }
+    ];
+
+    const CARS = [
+        { id: 'cart',    name: 'Einkaufswagen',       cost: 15,   value: 0.10 },
+        { id: 'scooter', name: 'Geklauter E-Scooter', cost: 30,   value: 0.11 },
+        { id: 'bike',    name: 'Rostiges Klapprad',   cost: 50,   value: 0.13 },
+        { id: 'tuning',  name: 'Tuning-Roller',       cost: 85,   value: 0.15 },
+        { id: 'luxury',  name: 'Proll-Schlitten',     cost: 250,  value: 0.22 },
+        { id: 'heli',    name: 'Privat-Helikopter',   cost: 850,  value: 0.45 },
+        { id: 'yacht',   name: 'Luxus-Yacht',         cost: 2500, value: 1.20 },
+        { id: 'jet',     name: 'Privatjet',           cost: 6000, value: 2.50 }
+    ];
+
+    const EMPLOYEES = [
+        { id: 'praktikant', name: 'Fauler Praktikant',           cost: 20,   income: 0.08 },
+        { id: 'aushilfe',   name: 'Aushilfe an der Ecke',        cost: 50,   income: 0.20 },
+        { id: 'buchhalter', name: 'Schwarzarbeitender Buchhalter', cost: 150, income: 0.55 },
+        { id: 'manager',    name: 'Selbsternannter Manager',     cost: 400,  income: 1.20 },
+        { id: 'anwalt',     name: 'Zwielichtiger Anwalt',        cost: 900,  income: 2.50 },
+        { id: 'ceo',        name: 'Möchtegern-CEO',              cost: 2000, income: 6.00 },
+        { id: 'hedgefund',  name: 'Hedgefonds-Manager',          cost: 5000, income: 14.00 }
+    ];
+
+    const EQUIPMENT = [
+        { id: 'schirm',      name: 'Rostiger Regenschirm',              cost: 12,   power: 2 },
+        { id: 'stuhl',       name: 'Klappstuhl-Schild',                 cost: 35,   power: 5 },
+        { id: 'dosen',       name: 'Dosenpyramiden-Wurfset',            cost: 70,   power: 9 },
+        { id: 'handschuhe',  name: 'Second-Hand-Boxhandschuhe',         cost: 150,  power: 16 },
+        { id: 'angel',       name: 'Vereister Angelstock',              cost: 350,  power: 28 },
+        { id: 'blech',       name: 'Alter Blechschild',                 cost: 800,  power: 45 },
+        { id: 'wanderstock', name: 'Wanderstock des Viertelkönigs',     cost: 2000, power: 80 },
+        { id: 'katana',      name: 'Legendäres Rost-Katana',            cost: 5000,  power: 140 }
+    ];
+
+    const RIVALS = [
+        'Hänschen von der Parkbank', 'Die Dosensammler-Gang', 'Der Kiez-König',
+        'Rentner-Ralf mit dem Rollator', 'Die Taubenfrau vom Bahnhof', 'Struppi und sein Herrchen',
+        'Der Typ mit dem Einkaufswagen-Imperium', 'Wolfgang aus dem besetzten Haus nebenan',
+        'Die Kampfsport-Rentnerin aus dem 3. Stock', 'Big Manni vom Kiosk',
+        'Der maskierte Flaschenpfand-Rächer'
+    ];
+
+    const EVENTS = [
+        { icon: '🪙', text: 'Ein Tourist wirft dir aus Mitleid ein paar Münzen zu!', apply: () => { let r = 2.00 * getMultiplier(); addMoney(r); return '+' + r.toFixed(2) + ' €'; } },
+        { icon: '🎸', text: 'Ein Straßenmusiker teilt spontan sein Trinkgeld mit dir!', apply: () => { let r = 3.50 * getMultiplier(); addMoney(r); return '+' + r.toFixed(2) + ' €'; } },
+        { icon: '🗑️', text: 'Volltreffer! Du findest eine ganze Kiste Pfandflaschen im Container!', apply: () => { let r = 12; state.bottles = Math.min(state.maxBottles, state.bottles + r); return '+' + r + ' Flaschen'; } },
+        { icon: '☕', text: 'Ein mitleidiger Passant spendiert dir Kaffee und Kleingeld.', apply: () => { let r = 1.50 * getMultiplier(); addMoney(r); return '+' + r.toFixed(2) + ' €'; } },
+        { icon: '🎪', text: 'Ein Stadtfest lässt reichlich Pfand zurück!', apply: () => { let r = 8; state.bottles = Math.min(state.maxBottles, state.bottles + r); return '+' + r + ' Flaschen'; } },
+        { icon: '🍀', text: 'Du findest einen vergessenen Geldschein auf der Bank!', apply: () => { let r = 5.00 * getMultiplier(); addMoney(r); return '+' + r.toFixed(2) + ' €'; } },
+        { icon: '👮', text: 'Ordnungsamt-Kontrolle! Du musst kurz Strafe zahlen.', apply: () => { let r = 2.00; state.money = Math.max(0, state.money - r); return '-' + r.toFixed(2) + ' €'; } },
+        { icon: '📱', text: 'Dein Foto geht auf TikTok viral - "Straßen-CEO des Monats"!', apply: () => { let r = 15.00 * getMultiplier(); addMoney(r); return '+' + r.toFixed(2) + ' €'; } },
+        { icon: '🌧️', text: 'Starkregen! Dein Karton löst sich langsam auf...', apply: () => { let r = Math.min(state.money * 0.03, 5); state.money = Math.max(0, state.money - r); return '-' + r.toFixed(2) + ' €'; } }
+    ];
+
+    const ACHIEVEMENTS = [
+        { id: 'first_earn',    name: 'Erster Schnorrer',        desc: 'Verdiene deinen ersten Cent.',       reward: 1,   condition: s => (s.totalEarned || 0) > 0 },
+        { id: 'earn_100',      name: 'Kleinvieh macht auch Mist', desc: 'Insgesamt 100 € verdient.',        reward: 5,   condition: s => (s.totalEarned || 0) >= 100 },
+        { id: 'earn_1000',     name: 'Comeback-Story',          desc: 'Insgesamt 1.000 € verdient.',        reward: 25,  condition: s => (s.totalEarned || 0) >= 1000 },
+        { id: 'earn_10000',    name: 'Straßen-Millionär',       desc: 'Insgesamt 10.000 € verdient.',       reward: 100, condition: s => (s.totalEarned || 0) >= 10000 },
+        { id: 'level_100',     name: 'Aufsteiger',              desc: 'Level 100 erreicht.',                reward: 10,  condition: s => s.level >= 100 },
+        { id: 'level_1000',    name: 'Maximal ausgepennt',      desc: 'Level 1000 erreicht.',               reward: 50,  condition: s => s.level >= 1000 },
+        { id: 'own_dragon',    name: 'Drachenbändiger',         desc: 'Den Drachen adoptiert.',             reward: 30,  condition: s => s.activePet === 'dragon' },
+        { id: 'own_yacht',     name: 'Kapitän',                 desc: 'Die Luxus-Yacht gekauft.',           reward: 30,  condition: s => s.activeCar === 'yacht' },
+        { id: 'own_island',    name: 'Inselkönig',              desc: 'Die Privatinsel bezogen.',           reward: 50,  condition: s => s.currentHome === 'island' },
+        { id: 'own_ceo',       name: 'Chef im Haus',            desc: 'Den Möchtegern-CEO eingestellt.',    reward: 30,  condition: s => s.activeEmployee === 'ceo' },
+        { id: 'first_prestige', name: 'Neustart',               desc: 'Ein neues Leben begonnen.',          reward: 20,  condition: s => (s.prestigeCount || 0) >= 1 },
+        { id: 'streak_7',      name: 'Stammgast',               desc: '7 Tage in Folge eingeloggt.',        reward: 15,  condition: s => (s.loginStreak || 0) >= 7 },
+        { id: 'rep_100',       name: 'Bekannt im Kiez',         desc: '100 Ruf-Punkte gesammelt.',          reward: 15,  condition: s => (s.reputation || 0) >= 100 },
+        { id: 'rep_500',       name: 'Kiez-Legende',            desc: '500 Ruf-Punkte gesammelt.',          reward: 60,  condition: s => (s.reputation || 0) >= 500 },
+        { id: 'own_space',     name: 'Astronauten-Penner',      desc: 'Die Raumstation bezogen.',            reward: 80,  condition: s => s.currentHome === 'space' },
+        { id: 'own_phoenix',   name: 'Unsterblich',             desc: 'Den Phönix wiederbelebt.',            reward: 60,  condition: s => s.activePet === 'phoenix' },
+        { id: 'own_jet',       name: 'Über den Wolken',         desc: 'Den Privatjet gekauft.',              reward: 60,  condition: s => s.activeCar === 'jet' },
+        { id: 'own_katana',    name: 'Klingenmeister',          desc: 'Das legendäre Katana erworben.',      reward: 60,  condition: s => s.activeGear === 'katana' },
+        { id: 'earn_100000',   name: 'Kiez-Milliardär',         desc: 'Insgesamt 100.000 € verdient.',       reward: 300, condition: s => (s.totalEarned || 0) >= 100000 },
+        { id: 'fights_won_20', name: 'Unbesiegbar',             desc: '20 Ruf-Punkte-Kämpfe gewonnen.',      reward: 40,  condition: s => (s.fightsWon || 0) >= 20 }
+    ];
+
+    const FLAVOR_LINES = [
+        'Ein Anzugträger hat dich gerade komplett ignoriert...',
+        'Die Taube neben dir hat mehr Respekt verdient als du gerade bekommst.',
+        'Jemand hat "schönen Tag noch" gesagt. Das zählt schon als Erfolg.',
+        'Dein Bauch knurrt lauter als der Verkehr.',
+        'Ein Kind hat dich gerade angestarrt. Du hast zurückgestarrt. Unentschieden.',
+        'Der Wetterbericht sagt Regen. Dein Karton sagt: "Viel Glück."',
+        'Irgendwo lacht gerade ein Millionär. Nicht über dich. Wahrscheinlich.',
+        'Du riechst nach Erfolg. Oder nach dem Container von gestern.'
+    ];
+
+    let state = {
+        money: 0.00, bottles: 0, maxBottles: 20, bottlePrice: 0.08,
+        lastRentTime: 0, lastPetTime: 0,
+        level: 1,
+        begEnd: 0, begDuration: 0,
+        tourEnd: 0, tourDuration: 0,
+        cardsEnd: 0, cardsDuration: 0,
+        streetEnd: 0, streetDuration: 0,
+        currentHome: 'Gehweg', activePet: 'none', activeCar: 'none', activeEmployee: 'none',
+        lastEmployeeTime: 0,
+        prestigeCount: 0, totalEarned: 0, unlockedAchievements: [],
+        ordnungsamtProgress: 0, loginStreak: 0, lastLoginDate: '',
+        activeGear: 'none', reputation: 0, fightEnd: 0,
+        playerName: null, userId: null,
+        clanId: null, clanName: null
+    };
+
+    // ---- Visuelle Effekte ----
+    function spawnFloatingMoney(text, x, y) {
+        let el = document.createElement('div');
+        el.className = 'float-money';
+        el.innerText = text;
+        el.style.left = x + 'px';
+        el.style.top = y + 'px';
+        document.body.appendChild(el);
+        setTimeout(() => el.remove(), 1150);
+    }
+
+    function launchConfetti(count) {
+        const colors = ['#f39c12', '#2ecc71', '#3498db', '#9b59b6', '#e74c3c', '#f1c40f'];
+        for (let i = 0; i < count; i++) {
+            let el = document.createElement('div');
+            el.className = 'confetti-piece';
+            el.style.left = Math.random() * 100 + 'vw';
+            el.style.background = colors[Math.floor(Math.random() * colors.length)];
+            el.style.animationDuration = (1.8 + Math.random() * 1.6) + 's';
+            el.style.transform = 'rotate(' + (Math.random() * 360) + 'deg)';
+            document.body.appendChild(el);
+            setTimeout(() => el.remove(), 3800);
+        }
+    }
+
+    // ---- TAB LOGIC ----
+    function switchTab(tabId) {
+        document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+        document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+
+        document.getElementById(tabId).classList.add('active');
+        event.currentTarget.classList.add('active');
+    }
+
+    // ---- Dynamic Shop Rendering ----
+    function generateShopHTML(list, prefix) {
+        return list.map(item => `
+            <div class="upgrade-item">
+                <div class="item-info">
+                    <div class="item-name">${item.name}</div>
+                    <div class="item-desc">${item.rent ? 'Miete: +' + item.rent.toFixed(2) + '€ | Tasche: ' + item.capacity : item.chance ? 'Flaschen-Chance: ' + (item.chance*100) + '%' : item.power ? 'Kampfkraft: +' + item.power : item.income ? 'Verdienst: +' + item.income.toFixed(2) + '€' : 'Flaschenwert: ' + item.value.toFixed(2) + '€'}</div>
+                </div>
+                <button id="btn-${prefix}-${item.id}" class="shop-btn" onclick="buyShopItem('${prefix}', '${item.id}')">${item.cost.toFixed(2)} €</button>
+            </div>
+        `).join('');
+    }
+
+    function initShops() {
+        document.getElementById('shop-homes-list').innerHTML = generateShopHTML(HOMES, 'home');
+        document.getElementById('shop-pets-list').innerHTML = generateShopHTML(PETS, 'pet');
+        document.getElementById('shop-gear-list').innerHTML = generateShopHTML(EQUIPMENT, 'gear');
+        document.getElementById('shop-employees-list').innerHTML = generateShopHTML(EMPLOYEES, 'employee');
+        document.getElementById('shop-cars-list').innerHTML = generateShopHTML(CARS, 'car');
+    }
+
+    function buyShopItem(prefix, id) {
+        if (prefix === 'home') buyHome(id);
+        if (prefix === 'pet') buyPet(id);
+        if (prefix === 'gear') buyGear(id);
+        if (prefix === 'employee') buyEmployee(id);
+        if (prefix === 'car') buyCar(id);
+    }
+
+    function addMoney(amount) {
+        state.money += amount;
+        if (amount > 0) state.totalEarned = (state.totalEarned || 0) + amount;
+    }
+
+    function getMultiplier() { return 1 + (state.prestigeCount || 0) * 0.1; }
+    function getClickAmount() { return 0.05 + (state.level - 1) * 0.005; }
+
+    // ---- Auth ----
+    async function doEmailLogin() {
+        let email = document.getElementById('login-email').value.trim();
+        let pass = document.getElementById('login-password').value;
+        let errEl = document.getElementById('login-error');
+        errEl.innerText = '';
+        if (!email || !pass) { errEl.innerText = 'Bitte E-Mail und Passwort eingeben.'; return; }
+        try {
+            await window.fbSignIn(window.fbAuth, email, pass);
+        } catch (e) {
+            try {
+                await window.fbCreateUser(window.fbAuth, email, pass);
+            } catch (e2) {
+                errEl.innerText = 'Fehler: ' + e2.message;
+            }
+        }
+    }
+
+    async function doGoogleLogin() {
+        let errEl = document.getElementById('login-error');
+        try {
+            await window.fbSignInPopup(window.fbAuth, window.fbGoogleProvider);
+        } catch (e) {
+            errEl.innerText = 'Google-Login fehlgeschlagen: ' + e.message;
+        }
+    }
+
+    async function doLogout() {
+        await window.fbSignOut(window.fbAuth);
+        location.reload();
+    }
+
+    // ---- Firestore Kompletter Spielstand ----
+    async function saveGameToCloud() {
+        if (!window.fbReady || !state.userId) return;
+        try {
+            await window.fbSetDoc(window.fbDoc(window.fbDb, "saves", state.userId), {
+                gameState: JSON.stringify(state),
+                updatedAt: Date.now()
+            });
+        } catch (e) {
+            console.log("Cloud-Speicherung fehlgeschlagen:", e);
+        }
+    }
+
+    async function loadGameFromCloud() {
+        if (!window.fbReady || !state.userId) return null;
+        try {
+            let snap = await window.fbGetDoc(window.fbDoc(window.fbDb, "saves", state.userId));
+            if (snap.exists && snap.exists()) {
+                let data = snap.data();
+                if (data && data.gameState) return JSON.parse(data.gameState);
+            }
+            return null;
+        } catch (e) {
+            console.log("Cloud-Spielstand konnte nicht geladen werden:", e);
+            return null;
+        }
+    }
+
+    function onAuthChanged(user) {
+        let statusEl = document.getElementById('login-status');
+        let logoutBtn = document.getElementById('logout-btn');
+        let authForms = document.getElementById('auth-forms');
+        if (user) {
+            let previousUserId = state.userId;
+            state.userId = user.uid;
+            state.playerName = user.displayName || (user.email ? user.email.split('@')[0] : state.playerName);
+            if (statusEl) statusEl.innerText = 'Angemeldet als: ' + state.playerName;
+            if (logoutBtn) logoutBtn.style.display = 'block';
+            if (authForms) authForms.style.display = 'none';
+
+            if (previousUserId !== user.uid) {
+                loadGameFromCloud().then(cloudState => {
+                    if (cloudState) {
+                        let keepUserId = state.userId;
+                        let keepPlayerName = state.playerName;
+                        state = Object.assign(state, cloudState);
+                        state.userId = keepUserId;
+                        state.playerName = keepPlayerName;
+                        saveGame();
+                    } else {
+                        saveGameToCloud();
+                    }
+                    saveGame();
+                    refreshLeaderboard();
+                });
+            } else {
+                saveGame();
+                refreshLeaderboard();
+            }
+        } else {
+            if (statusEl) statusEl.innerText = 'Nicht angemeldet (Fortschritt nur lokal gespeichert)';
+            if (logoutBtn) logoutBtn.style.display = 'none';
+            if (authForms) authForms.style.display = 'block';
+        }
+    }
+
+    async function loadGame() {
+        initShops();
+        let saved = localStorage.getItem('penner_v4_9_save');
+        if (saved) {
+            try { state = Object.assign(state, JSON.parse(saved)); } catch (e) { console.log("Save konnte nicht geladen werden."); }
+        }
+        if (!state.level) state.level = 1;
+        if (!state.activePet) state.activePet = 'none';
+        if (!state.activeCar) state.activeCar = 'none';
+        if (!state.activeEmployee) state.activeEmployee = 'none';
+        if (!state.activeGear) state.activeGear = 'none';
+        if (!state.currentHome) state.currentHome = 'Gehweg';
+        if (!state.unlockedAchievements) state.unlockedAchievements = [];
+
+        if (!state.playerName) {
+            state.playerName = "Gast" + Math.floor(Math.random() * 10000);
+            saveGame();
+        }
+
+        let now = Date.now();
+        state.lastRentTime = now;
+        state.lastPetTime = now;
+        state.lastEmployeeTime = now;
+
+        checkDailyBonus();
+        rotateFlavor();
+        setInterval(rotateFlavor, 9000);
+
+        masterLoop();
+        setInterval(masterLoop, 400);
+
+        refreshLeaderboard();
+        setInterval(syncLeaderboard, 5000);
+        setInterval(refreshLeaderboard, 8000);
+        setInterval(saveGameToCloud, 15000);
+
+        setInterval(triggerEvent, 300000);
+    }
+
+    // ---- Firestore Bestenliste ----
+    async function syncLeaderboard() {
+        if (!window.fbReady || !state.userId || !state.playerName) return;
+        try {
+            await window.fbSetDoc(window.fbDoc(window.fbDb, "leaderboard", state.userId), {
+                name: state.playerName,
+                money: state.money,
+                level: state.level,
+                prestige: state.prestigeCount || 0,
+                achievements: (state.unlockedAchievements || []).length,
+                reputation: state.reputation || 0,
+                clanId: state.clanId || null,
+                clanName: state.clanName || null,
+                updated: Date.now()
+            });
+        } catch (e) {
+            console.log("Bestenliste konnte nicht aktualisiert werden:", e);
+        }
+    }
+
+    async function createClan() {
+        let nameInput = document.getElementById('clan-name-input');
+        let name = nameInput ? nameInput.value.trim() : '';
+        if (!name) return alert("Bitte einen Clan-Namen eingeben.");
+        if (!state.userId) return alert("Bitte zuerst einloggen.");
+        let clanId = name.toLowerCase().replace(/[^a-z0-9äöüß\-]/g, '');
+        if (!clanId) return alert("Ungültiger Clan-Name.");
+        try {
+            let existing = await window.fbGetDoc(window.fbDoc(window.fbDb, "clans", clanId));
+            if (existing.exists && existing.exists()) {
+                alert("Dieser Clan existiert bereits. Nutze stattdessen 'Beitreten'.");
+                return;
+            }
+            await window.fbSetDoc(window.fbDoc(window.fbDb, "clans", clanId), {
+                name: name, createdBy: state.userId, createdAt: Date.now(), memberCount: 1
+            });
+            state.clanId = clanId;
+            state.clanName = name;
+            saveGame();
+            await syncLeaderboard();
+            refreshClanBoard();
+        } catch (e) {
+            alert("Clan konnte nicht erstellt werden: " + e.message);
+        }
+    }
+
+    async function joinClan() {
+        let nameInput = document.getElementById('clan-name-input');
+        let name = nameInput ? nameInput.value.trim() : '';
+        if (!name) return alert("Bitte den Clan-Namen eingeben, dem du beitreten willst.");
+        if (!state.userId) return alert("Bitte zuerst einloggen.");
+        let clanId = name.toLowerCase().replace(/[^a-z0-9äöüß\-]/g, '');
+        try {
+            let snap = await window.fbGetDoc(window.fbDoc(window.fbDb, "clans", clanId));
+            if (!snap.exists || !snap.exists()) {
+                alert("Diesen Clan gibt es nicht. Prüfe die Schreibweise oder gründe ihn neu.");
+                return;
+            }
+            let data = snap.data();
+            await window.fbSetDoc(window.fbDoc(window.fbDb, "clans", clanId), {
+                name: data.name, createdBy: data.createdBy, createdAt: data.createdAt,
+                memberCount: (data.memberCount || 0) + 1
+            });
+            state.clanId = clanId;
+            state.clanName = data.name;
+            saveGame();
+            await syncLeaderboard();
+            refreshClanBoard();
+        } catch (e) {
+            alert("Beitritt fehlgeschlagen: " + e.message);
+        }
+    }
+
+    async function leaveClan() {
+        if (!state.clanId) return;
+        try {
+            let snap = await window.fbGetDoc(window.fbDoc(window.fbDb, "clans", state.clanId));
+            if (snap.exists && snap.exists()) {
+                let data = snap.data();
+                await window.fbSetDoc(window.fbDoc(window.fbDb, "clans", state.clanId), {
+                    name: data.name, createdBy: data.createdBy, createdAt: data.createdAt,
+                    memberCount: Math.max(0, (data.memberCount || 1) - 1)
+                });
+            }
+        } catch (e) {
+            console.log("Fehler beim Verlassen:", e);
+        }
+        state.clanId = null;
+        state.clanName = null;
+        saveGame();
+        await syncLeaderboard();
+        refreshClanBoard();
+    }
+
+    async function refreshClanBoard() {
+        let noneEl = document.getElementById('clan-none');
+        let activeEl = document.getElementById('clan-active');
+        if (!noneEl || !activeEl) return;
+        if (!state.clanId) {
+            noneEl.style.display = 'block';
+            activeEl.style.display = 'none';
+            return;
+        }
+        noneEl.style.display = 'none';
+        activeEl.style.display = 'block';
+        let nameDisplay = document.getElementById('clan-name-display');
+        if (nameDisplay) nameDisplay.innerText = '🏳️ ' + (state.clanName || state.clanId);
+
+        let boardEl = document.getElementById('clan-board');
+        if (!boardEl || !window.fbReady) return;
+        try {
+            let q = window.fbQuery(
+                window.fbCollection(window.fbDb, "leaderboard"),
+                window.fbWhere("clanId", "==", state.clanId)
+            );
+            let snap = await window.fbGetDocs(q);
+            let members = snap.docs.map(d => d.data());
+            members.sort((a, b) => b.money - a.money);
+            let total = members.reduce((sum, m) => sum + (m.money || 0), 0);
+            boardEl.innerHTML = 'Mitglieder: ' + members.length + ' · Gesamt: ' + total.toFixed(2) + ' €<br>'
+                + members.map((m, i) => (i + 1) + '. ' + escapeHtml(m.name) + ' – ' + (m.money || 0).toFixed(2) + ' €').join('<br>');
+        } catch (e) {
+            boardEl.innerHTML = "Clan-Bestenliste momentan nicht verfügbar.";
+        }
+    }
+
+    async function refreshLeaderboard() {
+        let el = document.getElementById('leaderboard-list');
+        if (!el || !window.fbReady) return;
+        try {
+            if (state.userId) await syncLeaderboard();
+            let q = window.fbQuery(
+                window.fbCollection(window.fbDb, "leaderboard"),
+                window.fbOrderBy("money", "desc"),
+                window.fbLimit(8)
+            );
+            let snap = await window.fbGetDocs(q);
+            let entries = snap.docs.map(d => d.data());
+
+            if (entries.length === 0) {
+                el.innerHTML = "Noch keine Einträge. Melde dich an, um dabei zu sein!";
+            } else {
+                el.innerHTML = entries.map((e, i) => {
+                    let highlight = (e.name === state.playerName) ? "color:#f39c12; font-weight:bold;" : "";
+                    let prestigeTag = (e.prestige > 0) ? ('P' + e.prestige + ' ') : '';
+                    let achv = (e.achievements != null) ? (' · 🏅' + e.achievements) : '';
+                    let rep = (e.reputation) ? (' · 👊' + e.reputation) : '';
+                    return '<div style="display:flex; justify-content:space-between; padding:2px 0; ' + highlight + '">'
+                        + '<span>' + (i + 1) + '. ' + prestigeTag + escapeHtml(e.name) + '</span>'
+                        + '<span>Lvl ' + e.level + ' · ' + e.money.toFixed(2) + ' €' + achv + rep + '</span>'
+                        + '</div>';
+                }).join('');
+            }
+            refreshClanBoard();
+        } catch (e) {
+            el.innerHTML = "Bestenliste momentan nicht verfügbar.";
+        }
+    }
+
+    function escapeHtml(str) {
+        return String(str).replace(/[&<>"']/g, function (c) {
+            return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+        });
+    }
+
+    function saveGame() { localStorage.setItem('penner_v4_9_save', JSON.stringify(state)); }
+    function resetGame() { if (confirm("Ganz von vorne anfangen?")) { localStorage.removeItem('penner_v4_9_save'); location.reload(); } }
+
+    function clickForMoney(evt) {
+        let amount = getClickAmount() * getMultiplier();
+        addMoney(amount);
+        saveGame();
+        if (evt) {
+            let x = evt.clientX || (evt.target ? evt.target.getBoundingClientRect().left + evt.target.offsetWidth / 2 : window.innerWidth / 2);
+            let y = evt.clientY || (evt.target ? evt.target.getBoundingClientRect().top : window.innerHeight / 2);
+            spawnFloatingMoney('+' + amount.toFixed(2) + ' €', x, y);
+        }
+    }
+
+    function sellBottles() {
+        if (state.bottles <= 0) return;
+        addMoney(state.bottles * state.bottlePrice * getMultiplier());
+        state.bottles = 0;
+        saveGame();
+    }
+
+    function getLevelCost(currentLvl, amount) {
+        let totalCost = 0;
+        for (let i = 0; i < amount; i++) {
+            let nextLvl = currentLvl + i;
+            if (nextLvl >= 1000) break;
+            totalCost += nextLvl * 1.50;
+        }
+        return totalCost;
+    }
+
+    function buyLevels(amount) {
+        if (state.level >= 1000) return;
+        let cost = getLevelCost(state.level, amount);
+        if (state.money >= cost) {
+            state.money -= cost;
+            state.level = Math.min(1000, state.level + amount);
+            saveGame();
+            launchConfetti(18);
+        }
+    }
+
+    function startJob(job, min) {
+        if (state[job + 'End'] > Date.now()) return;
+        if (job === 'tour' && state.bottles >= state.maxBottles) return alert("Deine Tasche ist voll!");
+        state[job + 'Duration'] = min;
+        state[job + 'End'] = Date.now() + (min * 60000);
+        saveGame();
+    }
+
+    function finishJob(job) {
+        let dur = state[job + 'Duration'] || 1;
+        if (job === 'beg') addMoney(dur * 0.15 * getMultiplier());
+        if (job === 'tour') state.bottles = Math.min(state.maxBottles, state.bottles + (dur * 8));
+        if (job === 'cards') {
+            if (Math.random() > 0.5) {
+                addMoney(dur * 1.10 * getMultiplier());
+            } else {
+                state.money = Math.max(0, state.money - (dur * 0.35));
+            }
+        }
+        if (job === 'street') {
+            addMoney(dur * 0.28 * getMultiplier());
+            if (Math.random() < 0.3) {
+                state.reputation = (state.reputation || 0) + 2;
+            }
+        }
+        state[job + 'End'] = 0;
+        saveGame();
+    }
+
+    function buyHome(id) {
+        let idx = HOMES.findIndex(h => h.id === id);
+        let curIdx = HOMES.findIndex(h => h.id === state.currentHome);
+        if (idx <= curIdx) return;
+        let item = HOMES[idx];
+        if (state.money < item.cost) return;
+        state.money -= item.cost;
+        state.currentHome = item.id;
+        state.maxBottles = item.capacity;
+        saveGame();
+    }
+
+    function buyPet(id) {
+        let idx = PETS.findIndex(p => p.id === id);
+        let curIdx = PETS.findIndex(p => p.id === state.activePet);
+        if (idx <= curIdx) return;
+        let item = PETS[idx];
+        if (state.money < item.cost) return;
+        state.money -= item.cost;
+        state.activePet = item.id;
+        saveGame();
+    }
+
+    function buyCar(id) {
+        let idx = CARS.findIndex(c => c.id === id);
+        let curIdx = CARS.findIndex(c => c.id === state.activeCar);
+        if (idx <= curIdx) return;
+        let item = CARS[idx];
+        if (state.money < item.cost) return;
+        state.money -= item.cost;
+        state.activeCar = item.id;
+        state.bottlePrice = item.value;
+        saveGame();
+    }
+
+    function buyEmployee(id) {
+        let idx = EMPLOYEES.findIndex(e => e.id === id);
+        let curIdx = EMPLOYEES.findIndex(e => e.id === state.activeEmployee);
+        if (idx <= curIdx) return;
+        let item = EMPLOYEES[idx];
+        if (state.money < item.cost) return;
+        state.money -= item.cost;
+        state.activeEmployee = item.id;
+        saveGame();
+    }
+
+    function buyGear(id) {
+        let idx = EQUIPMENT.findIndex(g => g.id === id);
+        let curIdx = EQUIPMENT.findIndex(g => g.id === state.activeGear);
+        if (idx <= curIdx) return;
+        let item = EQUIPMENT[idx];
+        if (state.money < item.cost) return;
+        state.money -= item.cost;
+        state.activeGear = item.id;
+        saveGame();
+    }
+
+    function getCombatPower() {
+        let gear = EQUIPMENT.find(g => g.id === state.activeGear);
+        return 1 + (gear ? gear.power : 0);
+    }
+
+    function startFight() {
+        if (state.fightEnd > Date.now()) return;
+        state.fightEnd = Date.now() + 20000;
+
+        let playerPower = getCombatPower();
+        let rivalPower = Math.max(1, 5 + (state.reputation || 0) * 0.3 + (Math.random() * 10 - 3));
+        let rivalName = RIVALS[Math.floor(Math.random() * RIVALS.length)];
+        let winChance = Math.min(0.92, Math.max(0.08, playerPower / (playerPower + rivalPower)));
+        let won = Math.random() < winChance;
+
+        let overlay = document.getElementById('event-overlay');
+        if (won) {
+            let repGain = Math.round(5 + rivalPower * 0.5);
+            state.reputation = (state.reputation || 0) + repGain;
+            state.fightsWon = (state.fightsWon || 0) + 1;
+            let moneyGain = 2.00 * getMultiplier();
+            addMoney(moneyGain);
+            document.getElementById('event-icon').innerText = '🏆';
+            document.getElementById('event-text').innerText = 'Sieg gegen ' + rivalName + '!';
+            document.getElementById('event-reward').innerText = '+' + repGain + ' Ruf-Punkte, +' + moneyGain.toFixed(2) + ' €';
+        } else {
+            let repLoss = Math.round(3 + rivalPower * 0.3);
+            state.reputation = Math.max(0, (state.reputation || 0) - repLoss);
+            document.getElementById('event-icon').innerText = '💥';
+            document.getElementById('event-text').innerText = 'Niederlage gegen ' + rivalName + '...';
+            document.getElementById('event-reward').innerText = '-' + repLoss + ' Ruf-Punkte';
+        }
+        if (overlay) overlay.style.display = 'flex';
+        saveGame();
+    }
+
+    function doPrestige() {
+        if (state.level < 1000) return;
+        if (!confirm("Ein neues Leben anfangen? Level, Geld, Unterkunft, Tiere, Auto und Mitarbeiter werden zurückgesetzt. Du erhältst dafür einen dauerhaften +10% Bonus auf alle Einnahmen.")) return;
+        state.prestigeCount = (state.prestigeCount || 0) + 1;
+        state.money = 0;
+        state.bottles = 0;
+        state.maxBottles = 20;
+        state.bottlePrice = 0.08;
+        state.level = 1;
+        state.currentHome = 'Gehweg';
+        state.activePet = 'none';
+        state.activeCar = 'none';
+        state.activeEmployee = 'none';
+        saveGame();
+        launchConfetti(60);
+    }
+
+    function todayStr() { return new Date().toISOString().slice(0, 10); }
+
+    function checkDailyBonus() {
+        let today = todayStr();
+        if (state.lastLoginDate === today) return;
+        let yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+        state.loginStreak = (state.lastLoginDate === yesterday) ? (state.loginStreak || 0) + 1 : 1;
+        let streakCapped = Math.min(state.loginStreak, 10);
+        let bonus = 1.00 * streakCapped * getMultiplier();
+        addMoney(bonus);
+        state.lastLoginDate = today;
+        saveGame();
+        setTimeout(() => showDailyBonus(bonus, state.loginStreak), 700);
+    }
+
+    function showDailyBonus(amount, streak) {
+        let overlay = document.getElementById('event-overlay');
+        if (!overlay) return;
+        document.getElementById('event-icon').innerText = '📅';
+        document.getElementById('event-text').innerText = 'Täglicher Bonus! Tag ' + streak + ' in Folge dabei.';
+        document.getElementById('event-reward').innerText = '+' + amount.toFixed(2) + ' €';
+        overlay.style.display = 'flex';
+    }
+
+    function rotateFlavor() {
+        let el = document.getElementById('flavor-text');
+        if (!el) return;
+        el.innerText = FLAVOR_LINES[Math.floor(Math.random() * FLAVOR_LINES.length)];
+    }
+
+    function hideFromOrdnungsamt() {
+        state.ordnungsamtProgress = 0;
+        saveGame();
+    }
+
+    function checkAchievements() {
+        if (!state.unlockedAchievements) state.unlockedAchievements = [];
+        for (let a of ACHIEVEMENTS) {
+            if (!state.unlockedAchievements.includes(a.id) && a.condition(state)) {
+                state.unlockedAchievements.push(a.id);
+                addMoney(a.reward);
+                saveGame();
+                showAchievement(a);
+                break;
+            }
+        }
+    }
+
+    function showAchievement(a) {
+        let overlay = document.getElementById('event-overlay');
+        if (!overlay) return;
+        document.getElementById('event-icon').innerText = '🏅';
+        document.getElementById('event-text').innerText = 'Erfolg freigeschaltet: ' + a.name + ' – ' + a.desc;
+        document.getElementById('event-reward').innerText = '+' + a.reward.toFixed(2) + ' €';
+        overlay.style.display = 'flex';
+    }
+
+    function triggerEvent() {
+        let overlay = document.getElementById('event-overlay');
+        if (!overlay) return;
+        let ev = EVENTS[Math.floor(Math.random() * EVENTS.length)];
+        let rewardText = ev.apply();
+        saveGame();
+        document.getElementById('event-icon').innerText = ev.icon;
+        document.getElementById('event-text').innerText = ev.text;
+        document.getElementById('event-reward').innerText = rewardText;
+        overlay.style.display = 'flex';
+    }
+
+    function closeEvent() {
+        let overlay = document.getElementById('event-overlay');
+        if (overlay) overlay.style.display = 'none';
+    }
+
+    function updateShopButtons(list, prefix, currentId) {
+        let curIdx = list.findIndex(x => x.id === currentId);
+        list.forEach((item, idx) => {
+            let btn = document.getElementById('btn-' + prefix + '-' + item.id);
+            if (!btn) return;
+            if (idx === curIdx) {
+                btn.className = 'shop-btn active-item';
+                btn.disabled = true;
+                btn.innerText = 'Aktiv ✓';
+            } else if (idx < curIdx) {
+                btn.className = 'shop-btn owned';
+                btn.disabled = true;
+                btn.innerText = 'Ersetzt';
+            } else if (state.money >= item.cost) {
+                btn.className = 'shop-btn affordable';
+                btn.disabled = false;
+                btn.innerText = item.cost.toFixed(2) + ' €';
+            } else {
+                btn.className = 'shop-btn';
+                btn.disabled = true;
+                btn.innerText = item.cost.toFixed(2) + ' €';
+            }
+        });
+    }
+
+    function masterLoop() {
+        let now = Date.now();
+
+        let jobs = ['beg', 'tour', 'cards', 'street'];
+        for (let i = 0; i < jobs.length; i++) {
+            let job = jobs[i];
+            let progBox = document.getElementById(job + '-prog');
+            let controls = document.getElementById(job + '-controls');
+
+            if (state[job + 'End'] > now) {
+                if (progBox) progBox.style.display = 'block';
+                if (controls) controls.style.display = 'none';
+
+                let remaining = state[job + 'End'] - now;
+                let total = state[job + 'Duration'] * 60000;
+
+                let bar = document.getElementById(job + '-bar');
+                let text = document.getElementById(job + '-text');
+                if (bar) bar.style.width = Math.max(0, Math.min(100, ((total - remaining) / total) * 100)) + "%";
+                if (text) text.innerText = Math.max(0, Math.ceil(remaining / 1000)) + "s";
+            } else {
+                if (state[job + 'End'] !== 0) {
+                    finishJob(job);
+                }
+                if (progBox) progBox.style.display = 'none';
+                if (controls) controls.style.display = 'grid';
+            }
+        }
+
+        if (state.activePet !== 'none' && state.bottles < state.maxBottles) {
+            if (now - state.lastPetTime >= 3000) {
+                let pet = PETS.find(p => p.id === state.activePet);
+                let chance = pet ? pet.chance : 0;
+                if (Math.random() < chance) {
+                    state.bottles = Math.min(state.maxBottles, state.bottles + 1);
+                }
+                state.lastPetTime = now;
+                saveGame();
+            }
+        }
+
+        if (state.currentHome !== 'Gehweg') {
+            if (now - state.lastRentTime >= 4000) {
+                let home = HOMES.find(h => h.id === state.currentHome);
+                let rent = home ? home.rent : 0;
+                addMoney(rent * getMultiplier());
+                state.lastRentTime = now;
+                saveGame();
+            }
+        }
+
+        if (state.activeEmployee !== 'none') {
+            if (now - state.lastEmployeeTime >= 4500) {
+                let employee = EMPLOYEES.find(e => e.id === state.activeEmployee);
+                let income = employee ? employee.income : 0;
+                addMoney(income * getMultiplier());
+                state.lastEmployeeTime = now;
+                saveGame();
+            }
+        }
+
+        state.ordnungsamtProgress = (state.ordnungsamtProgress || 0) + (400 / 780000) * 100;
+        if (state.ordnungsamtProgress >= 100) {
+            state.ordnungsamtProgress = 0;
+            let fine = Math.min(state.money * 0.05, 15);
+            state.money = Math.max(0, state.money - fine);
+            saveGame();
+            document.getElementById('event-icon').innerText = '👮';
+            document.getElementById('event-text').innerText = 'Erwischt! Das Ordnungsamt hat kurz kontrolliert und abkassiert.';
+            document.getElementById('event-reward').innerText = '-' + fine.toFixed(2) + ' €';
+            document.getElementById('event-overlay').style.display = 'flex';
+        }
+        let obar = document.getElementById('ordnungsamt-fill');
+        if (obar) obar.style.width = Math.min(100, state.ordnungsamtProgress) + '%';
+
+        document.getElementById('money').innerText = state.money.toFixed(2) + " €";
+        let collectBtn = document.getElementById('btn-collect-money');
+        if (collectBtn) collectBtn.innerHTML = '<i class="fas fa-coins"></i> Auf dem Marktplatz schnorren (+' + (getClickAmount() * getMultiplier()).toFixed(2) + ' €)';
+        document.getElementById('bottles').innerText = state.bottles + " / " + state.maxBottles;
+        document.getElementById('lvl-display').innerText = state.level + " / 1000";
+        document.getElementById('btn-sell').disabled = state.bottles <= 0;
+
+        let cost1 = getLevelCost(state.level, 1);
+        let cost10 = getLevelCost(state.level, 10);
+
+        let btn1 = document.getElementById('btn-lvl-1');
+        let btn10 = document.getElementById('btn-lvl-10');
+
+        if (document.getElementById('cost-lvl-1')) document.getElementById('cost-lvl-1').innerText = state.level >= 1000 ? "MAX" : cost1.toFixed(2) + " €";
+        if (document.getElementById('cost-lvl-10')) document.getElementById('cost-lvl-10').innerText = state.level >= 990 ? "MAX" : cost10.toFixed(2) + " €";
+
+        if (btn1) {
+            if (state.money >= cost1 && state.level < 1000) { btn1.className = "level-btn affordable"; btn1.disabled = false; }
+            else { btn1.className = "level-btn"; btn1.disabled = true; }
+        }
+        if (btn10) {
+            if (state.money >= cost10 && state.level <= 990) { btn10.className = "level-btn affordable"; btn10.disabled = false; }
+            else { btn10.className = "level-btn"; btn10.disabled = true; }
+        }
+
+        updateShopButtons(HOMES, 'home', state.currentHome);
+        updateShopButtons(PETS, 'pet', state.activePet);
+        updateShopButtons(CARS, 'car', state.activeCar);
+        updateShopButtons(EMPLOYEES, 'employee', state.activeEmployee);
+        updateShopButtons(EQUIPMENT, 'gear', state.activeGear);
+
+        let cpEl = document.getElementById('combat-power');
+        if (cpEl) cpEl.innerText = getCombatPower();
+        let repEl = document.getElementById('reputation-display');
+        if (repEl) repEl.innerText = state.reputation || 0;
+        let fightBtn = document.getElementById('btn-fight');
+        if (fightBtn) {
+            let remaining = state.fightEnd - now;
+            if (remaining > 0) {
+                fightBtn.disabled = true;
+                fightBtn.innerText = 'Erhole dich... (' + Math.ceil(remaining / 1000) + 's)';
+            } else {
+                fightBtn.disabled = false;
+                fightBtn.innerText = '👊 Kämpfen!';
+            }
+        }
+
+        let prestigeBtn = document.getElementById('btn-prestige');
+        if (prestigeBtn) prestigeBtn.style.display = (state.level >= 1000) ? 'block' : 'none';
+        let prestigeInfo = document.getElementById('prestige-info');
+        if (prestigeInfo) {
+            prestigeInfo.innerText = (state.prestigeCount > 0)
+                ? ('Prestige-Stufe ' + state.prestigeCount + ' (+' + (state.prestigeCount * 10) + '% auf alle Einnahmen)')
+                : '';
+        }
+
+        checkAchievements();
+        let achEl = document.getElementById('achievements-count');
+        if (achEl) achEl.innerText = '🏅 ' + ((state.unlockedAchievements || []).length) + ' / ' + ACHIEVEMENTS.length + ' Erfolge';
+    }
+
+    loadGame();
+</script>
+
+</body>
+</html>
