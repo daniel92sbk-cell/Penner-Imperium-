@@ -184,7 +184,7 @@
         .dashboard-stats-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-bottom: 16px; }
         .dashboard-stat-box { background: #222; border-radius: 8px; padding: 8px; text-align: center; }
         .badge-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; }
-        .badge { aspect-ratio: 1; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 18px; background: #222; border: 1px solid var(--border-color); }
+        .badge { aspect-ratio: 1; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 18px; background: #222; border: 1px solid var(--border-color); cursor: pointer; }
         .badge.unlocked { background: linear-gradient(135deg, rgba(243,156,18,0.28), rgba(155,89,182,0.22)); border-color: var(--accent-color); }
         .badge.locked { color: #444; opacity: 0.6; }
     </style>
@@ -597,7 +597,7 @@
         playerName: null, userId: null,
         clanId: null, clanName: null,
         lastMinigameTime: 0,
-        isOG: false, ogNumber: null
+        isOG: false, ogNumber: null, ogChecked: false
     };
 
     // ---- Visuelle Effekte ----
@@ -866,6 +866,9 @@
                         if (!state.playerName) state.playerName = fallbackName;
                     } else {
                         saveGameToCloud();
+                    }
+                    if (!state.ogChecked) {
+                        state.ogChecked = true;
                         claimOGStatusIfEligible();
                     }
                     saveGame();
@@ -1176,12 +1179,26 @@
         return 'Frischling auf der Straße';
     }
 
+    function showBadgeDetail(id) {
+        let a = ACHIEVEMENTS.find(x => x.id === id);
+        if (!a) return;
+        let unlocked = (state.unlockedAchievements || []).includes(id);
+        let overlay = document.getElementById('event-overlay');
+        document.getElementById('event-icon').innerText = unlocked ? '🏅' : '🔒';
+        document.getElementById('event-text').innerText = a.name;
+        document.getElementById('event-reward').innerHTML = a.desc
+            + (unlocked
+                ? '<br><span style="color:var(--success-color); font-size:13px;">Freigeschaltet ✓ (+' + a.reward.toFixed(2) + ' €)</span>'
+                : '<br><span style="color:#888; font-size:13px;">Noch nicht freigeschaltet</span>');
+        if (overlay) overlay.style.display = 'flex';
+    }
+
     function renderBadgeGrid() {
         let grid = document.getElementById('badge-grid');
         if (!grid) return;
         grid.innerHTML = ACHIEVEMENTS.map(a => {
             let unlocked = (state.unlockedAchievements || []).includes(a.id);
-            return '<div class="badge ' + (unlocked ? 'unlocked' : 'locked') + '" title="' + escapeHtml(a.name) + ': ' + escapeHtml(a.desc) + '">'
+            return '<div class="badge ' + (unlocked ? 'unlocked' : 'locked') + '" onclick="showBadgeDetail(\'' + a.id + '\')">'
                 + (unlocked ? '🏅' : '<i class="fas fa-lock"></i>') + '</div>';
         }).join('');
     }
