@@ -926,8 +926,10 @@
         setInterval(masterLoop, 400);
 
         refreshLeaderboard();
+        refreshGlobalClanLeaderboard();
         setInterval(syncLeaderboard, 5000);
         setInterval(refreshLeaderboard, 8000);
+        setInterval(refreshGlobalClanLeaderboard, 8000);
         setInterval(saveGameToCloud, 15000);
 
         setInterval(triggerEvent, 300000);
