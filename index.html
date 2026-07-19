@@ -857,6 +857,13 @@
             if (logoutBtn) logoutBtn.style.display = 'block';
             if (authForms) authForms.style.display = 'none';
 
+            let runOGCheck = function () {
+                if (!state.ogChecked) {
+                    state.ogChecked = true;
+                    claimOGStatusIfEligible();
+                }
+            };
+
             if (previousUserId !== user.uid) {
                 loadGameFromCloud().then(cloudState => {
                     let keepUserId = state.userId;
@@ -867,16 +874,14 @@
                     } else {
                         saveGameToCloud();
                     }
-                    if (!state.ogChecked) {
-                        state.ogChecked = true;
-                        claimOGStatusIfEligible();
-                    }
+                    runOGCheck();
                     saveGame();
                     updateNicknameField();
                     if (statusEl) statusEl.innerText = 'Angemeldet als: ' + state.playerName;
                     refreshLeaderboard();
                 });
             } else {
+                runOGCheck();
                 saveGame();
                 updateNicknameField();
                 refreshLeaderboard();
