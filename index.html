@@ -167,6 +167,26 @@
         .fight-marker-animate {
             animation: fightMarkerMove 1.5s ease-in-out infinite;
         }
+
+        /* Dashboard */
+        .dashboard-avatar {
+            width: 90px; height: 90px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--accent-color), #d35400);
+            display: flex; align-items: center; justify-content: center;
+            font-size: 44px;
+            margin: 0 auto 10px auto;
+            box-shadow: 0 4px 14px rgba(0,0,0,0.5);
+            border: 3px solid rgba(255,255,255,0.15);
+        }
+        .dashboard-name { text-align: center; font-size: 19px; font-weight: bold; color: #fff; margin-bottom: 2px; }
+        .dashboard-subtitle { text-align: center; font-size: 11px; color: #999; margin-bottom: 14px; text-transform: uppercase; letter-spacing: 1px; }
+        .dashboard-stats-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-bottom: 16px; }
+        .dashboard-stat-box { background: #222; border-radius: 8px; padding: 8px; text-align: center; }
+        .badge-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; }
+        .badge { aspect-ratio: 1; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 18px; background: #222; border: 1px solid var(--border-color); }
+        .badge.unlocked { background: linear-gradient(135deg, rgba(243,156,18,0.28), rgba(155,89,182,0.22)); border-color: var(--accent-color); }
+        .badge.locked { color: #444; opacity: 0.6; }
     </style>
 </head>
 <body>
@@ -316,6 +336,20 @@
 
     <!-- TAB: KONTO / ACC -->
     <div id="tab-konto" class="tab-content">
+        <div class="job-card" style="text-align:center;">
+            <div id="dashboard-avatar" class="dashboard-avatar">🧍</div>
+            <div id="dashboard-name" class="dashboard-name">Gast</div>
+            <div id="dashboard-title" class="dashboard-subtitle">Frischling auf der Straße</div>
+            <div class="dashboard-stats-grid">
+                <div class="dashboard-stat-box"><div style="font-size:9px; color:#888;">LEVEL</div><div id="dash-level" style="font-weight:bold; color:var(--accent-color);">1</div></div>
+                <div class="dashboard-stat-box"><div style="font-size:9px; color:#888;">KAMPFPUNKTE</div><div id="dash-rep" style="font-weight:bold; color:var(--accent-color);">👊 0</div></div>
+                <div class="dashboard-stat-box"><div style="font-size:9px; color:#888;">KONTOSTAND</div><div id="dash-money" style="font-weight:bold; color:var(--accent-color);">0,00 €</div></div>
+                <div class="dashboard-stat-box"><div style="font-size:9px; color:#888;">CLAN</div><div id="dash-clan" style="font-weight:bold; color:var(--accent-color);">Kein Clan</div></div>
+            </div>
+            <div class="section-title" style="text-align:left; margin-top:0;"><i class="fas fa-medal icon"></i>Auszeichnungen</div>
+            <div id="badge-grid" class="badge-grid"></div>
+        </div>
+
         <div class="section-title"><i class="fas fa-id-badge icon"></i>Spielername</div>
         <div class="job-card">
             <input id="nickname-input" type="text" placeholder="Dein Spielername" class="login-input" maxlength="20">
@@ -532,7 +566,8 @@
         { id: 'own_jet',       name: 'Über den Wolken',         desc: 'Den Privatjet gekauft.',              reward: 60,  condition: s => s.activeCar === 'jet' },
         { id: 'own_katana',    name: 'Klingenmeister',          desc: 'Das legendäre Katana erworben.',      reward: 60,  condition: s => s.activeGear === 'katana' },
         { id: 'earn_100000',   name: 'Kiez-Milliardär',         desc: 'Insgesamt 100.000 € verdient.',       reward: 300, condition: s => (s.totalEarned || 0) >= 100000 },
-        { id: 'fights_won_20', name: 'Unbesiegbar',             desc: '20 Ruf-Punkte-Kämpfe gewonnen.',      reward: 40,  condition: s => (s.fightsWon || 0) >= 20 }
+        { id: 'fights_won_20', name: 'Unbesiegbar',             desc: '20 Ruf-Punkte-Kämpfe gewonnen.',      reward: 40,  condition: s => (s.fightsWon || 0) >= 20 },
+        { id: 'og_player',     name: 'OG Spieler',              desc: 'Einer der ersten 10 Spieler überhaupt!', reward: 100, condition: s => s.isOG === true }
     ];
 
     const FLAVOR_LINES = [
@@ -561,7 +596,8 @@
         activeGear: 'none', reputation: 0, fightEnd: 0,
         playerName: null, userId: null,
         clanId: null, clanName: null,
-        lastMinigameTime: 0
+        lastMinigameTime: 0,
+        isOG: false, ogNumber: null
     };
 
     // ---- Visuelle Effekte ----
@@ -830,6 +866,7 @@
                         if (!state.playerName) state.playerName = fallbackName;
                     } else {
                         saveGameToCloud();
+                        claimOGStatusIfEligible();
                     }
                     saveGame();
                     updateNicknameField();
@@ -901,10 +938,31 @@
                 reputation: state.reputation || 0,
                 clanId: state.clanId || null,
                 clanName: state.clanName || null,
+                ogPlayer: state.isOG || false,
                 updated: Date.now()
             });
         } catch (e) {
             console.log("Bestenliste konnte nicht aktualisiert werden:", e);
+        }
+    }
+
+    async function claimOGStatusIfEligible() {
+        if (!window.fbReady || state.isOG) return;
+        try {
+            let counterRef = window.fbDoc(window.fbDb, "meta", "ogCounter");
+            let snap = await window.fbGetDoc(counterRef);
+            let current = (snap.exists && snap.exists()) ? (snap.data().count || 0) : 0;
+            let newCount = current + 1;
+            await window.fbSetDoc(counterRef, { count: newCount });
+            if (newCount <= 10) {
+                state.isOG = true;
+                state.ogNumber = newCount;
+                saveGame();
+                saveGameToCloud();
+                syncLeaderboard();
+            }
+        } catch (e) {
+            console.log("OG-Status konnte nicht geprüft werden:", e);
         }
     }
 
@@ -1083,10 +1141,11 @@
                 el.innerHTML = entries.map((e, i) => {
                     let highlight = (e.name === state.playerName) ? "color:#f39c12; font-weight:bold;" : "";
                     let prestigeTag = (e.prestige > 0) ? ('P' + e.prestige + ' ') : '';
+                    let ogTag = e.ogPlayer ? '🎖️ ' : '';
                     let achv = (e.achievements != null) ? (' · 🏅' + e.achievements) : '';
                     let money = (e.money != null) ? (' · ' + e.money.toFixed(2) + ' €') : '';
                     return '<div style="display:flex; justify-content:space-between; padding:2px 0; ' + highlight + '">'
-                        + '<span>' + (i + 1) + '. ' + prestigeTag + escapeHtml(e.name) + '</span>'
+                        + '<span>' + (i + 1) + '. ' + ogTag + prestigeTag + escapeHtml(e.name) + '</span>'
                         + '<span>👊 ' + (e.reputation || 0) + ' · Lvl ' + e.level + achv + money + '</span>'
                         + '</div>';
                 }).join('');
@@ -1095,6 +1154,54 @@
         } catch (e) {
             el.innerHTML = "Bestenliste momentan nicht verfügbar.";
         }
+    }
+
+    function getAvatarEmoji() {
+        if (state.prestigeCount >= 3) return '💎';
+        if (state.prestigeCount >= 1) return '🌟';
+        if (state.level >= 1000) return '👑';
+        if (state.level >= 500) return '🎩';
+        if (state.level >= 200) return '🥾';
+        if (state.level >= 50) return '🧥';
+        return '🧍';
+    }
+
+    function getAvatarTitle() {
+        if (state.prestigeCount >= 3) return 'Legende der Straße';
+        if (state.prestigeCount >= 1) return 'Wiedergeborener';
+        if (state.level >= 1000) return 'Kiez-König';
+        if (state.level >= 500) return 'Etablierter Geschäftsmann';
+        if (state.level >= 200) return 'Aufsteigender Hustler';
+        if (state.level >= 50) return 'Erfahrener Sammler';
+        return 'Frischling auf der Straße';
+    }
+
+    function renderBadgeGrid() {
+        let grid = document.getElementById('badge-grid');
+        if (!grid) return;
+        grid.innerHTML = ACHIEVEMENTS.map(a => {
+            let unlocked = (state.unlockedAchievements || []).includes(a.id);
+            return '<div class="badge ' + (unlocked ? 'unlocked' : 'locked') + '" title="' + escapeHtml(a.name) + ': ' + escapeHtml(a.desc) + '">'
+                + (unlocked ? '🏅' : '<i class="fas fa-lock"></i>') + '</div>';
+        }).join('');
+    }
+
+    function updateDashboard() {
+        let avatarEl = document.getElementById('dashboard-avatar');
+        if (avatarEl) avatarEl.innerText = getAvatarEmoji();
+        let nameEl = document.getElementById('dashboard-name');
+        if (nameEl) nameEl.innerText = state.playerName || 'Gast';
+        let titleEl = document.getElementById('dashboard-title');
+        if (titleEl) titleEl.innerText = getAvatarTitle();
+        let lvlEl = document.getElementById('dash-level');
+        if (lvlEl) lvlEl.innerText = state.level;
+        let repEl = document.getElementById('dash-rep');
+        if (repEl) repEl.innerText = '👊 ' + (state.reputation || 0);
+        let moneyEl = document.getElementById('dash-money');
+        if (moneyEl) moneyEl.innerText = state.money.toFixed(2) + ' €';
+        let clanEl = document.getElementById('dash-clan');
+        if (clanEl) clanEl.innerText = state.clanName || 'Kein Clan';
+        renderBadgeGrid();
     }
 
     function escapeHtml(str) {
@@ -1594,6 +1701,7 @@
         checkAchievements();
         let achEl = document.getElementById('achievements-count');
         if (achEl) achEl.innerText = '🏅 ' + ((state.unlockedAchievements || []).length) + ' / ' + ACHIEVEMENTS.length + ' Erfolge';
+        updateDashboard();
     }
 
     loadGame();
