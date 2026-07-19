@@ -335,6 +335,11 @@
             </div>
         </div>
 
+        <div class="section-title"><i class="fas fa-bolt icon"></i>Aktive Clan-Kriege</div>
+        <div class="job-card">
+            <div id="active-wars-feed" style="font-size:11px; color:#ccc;">Lade aktive Kriege...</div>
+        </div>
+
         <div class="section-title"><i class="fas fa-flag icon"></i>Clan-Rangliste</div>
         <div class="job-card">
             <div id="clan-leaderboard-list" style="font-size:11px; color:#ccc;">Lade Clan-Rangliste...</div>
@@ -937,7 +942,6 @@
             saveGame();
         }
         updateNicknameField();
-        updateSoundButton();
 
         let now = Date.now();
         state.lastRentTime = now;
@@ -946,7 +950,6 @@
 
         if (offlineEarnings > 0.01) addMoney(offlineEarnings);
         let dailyResult = checkDailyBonus();
-        ensureDailyChallenge();
         setTimeout(() => showWelcomeBackPopup(offlineEarnings, dailyResult.amount, dailyResult.streak), 700);
         rotateFlavor();
         setInterval(rotateFlavor, 9000);
@@ -956,9 +959,11 @@
 
         refreshLeaderboard();
         refreshGlobalClanLeaderboard();
+        refreshActiveWarsFeed();
         setInterval(syncLeaderboard, 5000);
         setInterval(refreshLeaderboard, 8000);
         setInterval(refreshGlobalClanLeaderboard, 8000);
+        setInterval(refreshActiveWarsFeed, 8000);
         setInterval(saveGameToCloud, 15000);
 
         setInterval(triggerEvent, 300000);
@@ -1078,6 +1083,34 @@
         saveGame();
         await syncLeaderboard();
         refreshClanBoard();
+    }
+
+    async function refreshActiveWarsFeed() {
+        let el = document.getElementById('active-wars-feed');
+        if (!el || !window.fbReady) return;
+        try {
+            let q = window.fbQuery(
+                window.fbCollection(window.fbDb, "clanWars"),
+                window.fbWhere("status", "==", "active")
+            );
+            let snap = await window.fbGetDocs(q);
+            let wars = snap.docs.map(d => d.data());
+            if (wars.length === 0) {
+                el.innerHTML = "Gerade führt kein Clan einen Krieg.";
+                return;
+            }
+            el.innerHTML = wars.map(w => {
+                let remainingMs = Math.max(0, w.endTime - Date.now());
+                let hoursLeft = Math.floor(remainingMs / 3600000);
+                let minsLeft = Math.floor((remainingMs % 3600000) / 60000);
+                return '<div style="display:flex; justify-content:space-between; padding:3px 0; border-bottom:1px solid var(--border-color);">'
+                    + '<span>' + escapeHtml(w.clanAName) + ' ⚔️ ' + escapeHtml(w.clanBName) + '</span>'
+                    + '<span>' + w.clanAWins + ':' + w.clanBWins + ' · ' + hoursLeft + 'h ' + minsLeft + 'm</span>'
+                    + '</div>';
+            }).join('');
+        } catch (e) {
+            el.innerHTML = "Aktive Kriege momentan nicht verfügbar.";
+        }
     }
 
     async function refreshGlobalClanLeaderboard() {
