@@ -12,6 +12,30 @@
         .game-container { max-width: 450px; margin: auto; background: rgba(30,30,30,0.9); border-radius: 12px; padding: 15px; box-shadow: 0 8px 24px rgba(0,0,0,0.5); backdrop-filter: blur(2px); }
         h1 { text-align: center; color: var(--accent-color); font-size: 22px; margin: 0 0 10px 0; }
 
+        .hero-banner {
+            background-image: linear-gradient(180deg, rgba(18,18,18,0.2) 0%, rgba(18,18,18,0.8) 100%), url("Gemini_Generated_Image_m3jjprm3jjprm3jj.png");
+            background-size: cover;
+            background-position: center 25%;
+            border-radius: 12px 12px 0 0;
+            margin: -15px -15px 15px -15px;
+            padding: 30px 15px 18px 15px;
+            text-align: center;
+        }
+        .hero-banner h1 {
+            margin: 0;
+            font-size: 27px;
+            text-shadow: 0 2px 10px rgba(0,0,0,0.85);
+            letter-spacing: 0.5px;
+        }
+        .hero-subtitle {
+            font-size: 11px;
+            color: #eee;
+            text-transform: uppercase;
+            letter-spacing: 2.5px;
+            margin-top: 6px;
+            text-shadow: 0 2px 5px rgba(0,0,0,0.8);
+        }
+
         /* Tab Navigation Styles */
         .tab-navigation { display: flex; background: #262626; border-radius: 8px; padding: 4px; margin-bottom: 15px; border: 1px solid var(--border-color); gap: 4px; }
         .tab-btn { flex: 1; padding: 10px 4px; background: transparent; color: #aaa; font-size: 11px; border-radius: 6px; text-align: center; cursor: pointer; font-weight: bold; transition: all 0.2s; display: flex; flex-direction: column; align-items: center; gap: 4px; }
@@ -134,12 +158,24 @@
             0% { opacity: 1; transform: translateY(0) scale(1); }
             100% { opacity: 0; transform: translateY(-35px) scale(1.5); }
         }
+
+        @keyframes fightMarkerMove {
+            0% { left: 0%; }
+            50% { left: calc(100% - 4px); }
+            100% { left: 0%; }
+        }
+        .fight-marker-animate {
+            animation: fightMarkerMove 1.5s ease-in-out infinite;
+        }
     </style>
 </head>
 <body>
 
 <div class="game-container">
-    <h1><i class="fas fa-champagne-glasses icon"></i>Penner-Imperium v5.1</h1>
+    <div class="hero-banner">
+        <h1><i class="fas fa-champagne-glasses icon"></i>Penner-Imperium</h1>
+        <div class="hero-subtitle">Vom Kiez zum Imperium</div>
+    </div>
 
     <!-- Permanente Statusanzeige -->
     <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 10px;">
@@ -267,6 +303,11 @@
             </div>
         </div>
 
+        <div class="section-title"><i class="fas fa-flag icon"></i>Clan-Rangliste</div>
+        <div class="job-card">
+            <div id="clan-leaderboard-list" style="font-size:11px; color:#ccc;">Lade Clan-Rangliste...</div>
+        </div>
+
         <div class="section-title"><i class="fas fa-trophy icon"></i>Globale Bestenliste</div>
         <div class="job-card">
             <div id="leaderboard-list" style="font-size:11px; color:#ccc;">Lade Bestenliste...</div>
@@ -313,6 +354,21 @@
         <div class="event-text" id="event-text"></div>
         <div class="event-reward" id="event-reward"></div>
         <button class="event-btn" onclick="closeEvent()">Einsammeln</button>
+    </div>
+</div>
+
+<!-- Kiez-Kampf Timing-Minispiel -->
+<div id="fight-overlay" class="event-overlay">
+    <div class="event-box" style="max-width:320px;">
+        <div class="event-icon">👊</div>
+        <div class="event-text">Triff die Lücke im richtigen Moment!</div>
+        <div id="fight-track" style="position:relative; width:100%; height:36px; background:#222; border-radius:8px; margin:14px 0; overflow:hidden; border:2px solid var(--border-color);">
+            <div id="fight-zone" style="position:absolute; top:0; height:100%; background:rgba(46,204,113,0.35); border-left:2px solid var(--success-color); border-right:2px solid var(--success-color);"></div>
+            <div id="fight-marker" style="position:absolute; top:0; width:4px; height:100%; background:#fff; box-shadow:0 0 8px rgba(255,255,255,0.8);"></div>
+        </div>
+        <button class="event-btn" style="background:#c0392b;" onclick="resolveFightTap()">👊 Treffen!</button>
+        <div id="fight-result" style="margin-top:10px; font-size:14px; font-weight:bold; text-align:center; min-height:40px;"></div>
+        <button class="btn-sm" style="width:100%; margin-top:6px; background:#333; color:#aaa;" onclick="closeFightOverlay()">Schließen</button>
     </div>
 </div>
 
@@ -873,6 +929,7 @@
             saveGame();
             await syncLeaderboard();
             refreshClanBoard();
+            refreshGlobalClanLeaderboard();
         } catch (e) {
             alert("Clan konnte nicht erstellt werden: " + e.message);
         }
@@ -924,6 +981,40 @@
         saveGame();
         await syncLeaderboard();
         refreshClanBoard();
+    }
+
+    async function refreshGlobalClanLeaderboard() {
+        let el = document.getElementById('clan-leaderboard-list');
+        if (!el || !window.fbReady) return;
+        try {
+            let q = window.fbQuery(
+                window.fbCollection(window.fbDb, "leaderboard"),
+                window.fbLimit(200)
+            );
+            let snap = await window.fbGetDocs(q);
+            let entries = snap.docs.map(d => d.data()).filter(e => e.clanId);
+            let clanMap = {};
+            entries.forEach(e => {
+                if (!clanMap[e.clanId]) clanMap[e.clanId] = { name: e.clanName || e.clanId, reputation: 0, members: 0 };
+                clanMap[e.clanId].reputation += (e.reputation || 0);
+                clanMap[e.clanId].members += 1;
+            });
+            let clans = Object.keys(clanMap).map(id => Object.assign({ id: id }, clanMap[id]));
+            clans.sort((a, b) => b.reputation - a.reputation);
+            if (clans.length === 0) {
+                el.innerHTML = "Noch keine Clans mit Punkten vorhanden.";
+                return;
+            }
+            el.innerHTML = clans.slice(0, 10).map((c, i) => {
+                let highlight = (c.id === state.clanId) ? "color:#f39c12; font-weight:bold;" : "";
+                return '<div style="display:flex; justify-content:space-between; padding:2px 0; ' + highlight + '">'
+                    + '<span>' + (i + 1) + '. ' + escapeHtml(c.name) + '</span>'
+                    + '<span>👊 ' + c.reputation + ' · ' + c.members + ' Mitgl.</span>'
+                    + '</div>';
+            }).join('');
+        } catch (e) {
+            el.innerHTML = "Clan-Rangliste momentan nicht verfügbar.";
+        }
     }
 
     async function refreshClanBoard() {
@@ -1145,35 +1236,98 @@
         return 1 + (gear ? gear.power : 0);
     }
 
+    let fightAutoMissTimeout = null;
+    let fightResolved = false;
+
     function startFight() {
         if (state.fightEnd > Date.now()) return;
+        fightResolved = false;
+
+        let zoneCenter = 30 + Math.random() * 40;
+        let zoneWidth = 22;
+        let zone = document.getElementById('fight-zone');
+        if (zone) {
+            zone.style.left = (zoneCenter - zoneWidth / 2) + '%';
+            zone.style.width = zoneWidth + '%';
+        }
+        let marker = document.getElementById('fight-marker');
+        if (marker) {
+            marker.classList.remove('fight-marker-animate');
+            void marker.offsetWidth;
+            marker.classList.add('fight-marker-animate');
+        }
+        let resultEl = document.getElementById('fight-result');
+        if (resultEl) resultEl.innerHTML = '';
+        document.getElementById('fight-overlay').style.display = 'flex';
+
+        clearTimeout(fightAutoMissTimeout);
+        fightAutoMissTimeout = setTimeout(() => {
+            if (!fightResolved) resolveFightTap(true);
+        }, 4000);
+    }
+
+    function resolveFightTap(autoMiss) {
+        if (fightResolved) return;
+        fightResolved = true;
+        clearTimeout(fightAutoMissTimeout);
+
+        let quality = 0;
+        let marker = document.getElementById('fight-marker');
+        if (!autoMiss) {
+            let track = document.getElementById('fight-track');
+            let zone = document.getElementById('fight-zone');
+            if (track && marker && zone) {
+                let trackRect = track.getBoundingClientRect();
+                let markerRect = marker.getBoundingClientRect();
+                let pct = ((markerRect.left + markerRect.width / 2 - trackRect.left) / trackRect.width) * 100;
+                let zoneLeft = parseFloat(zone.style.left);
+                let zoneWidth = parseFloat(zone.style.width);
+                let zoneCenter = zoneLeft + zoneWidth / 2;
+                let halfWidth = zoneWidth / 2;
+                let dist = Math.abs(pct - zoneCenter);
+                quality = dist <= halfWidth ? Math.max(0, 1 - (dist / halfWidth)) : 0;
+            }
+        }
+        if (marker) marker.classList.remove('fight-marker-animate');
+
+        let label = 'Verfehlt!';
+        if (quality >= 0.85) label = 'PERFEKT!';
+        else if (quality >= 0.4) label = 'Guter Treffer!';
+        else if (quality > 0) label = 'Knapp daneben...';
+
         state.fightEnd = Date.now() + 20000;
 
-        let playerPower = getCombatPower();
+        let basePower = getCombatPower();
+        let effectivePower = basePower * (0.4 + quality * 1.2);
         let rivalPower = Math.max(1, 5 + (state.reputation || 0) * 0.3 + (Math.random() * 10 - 3));
         let rivalName = RIVALS[Math.floor(Math.random() * RIVALS.length)];
-        let winChance = Math.min(0.92, Math.max(0.08, playerPower / (playerPower + rivalPower)));
+        let winChance = Math.min(0.92, Math.max(0.05, effectivePower / (effectivePower + rivalPower)));
         let won = Math.random() < winChance;
 
-        let overlay = document.getElementById('event-overlay');
+        let resultEl = document.getElementById('fight-result');
         if (won) {
-            let repGain = Math.round(5 + rivalPower * 0.5);
+            let repGain = Math.round((5 + rivalPower * 0.5) * (0.6 + quality * 0.8));
             state.reputation = (state.reputation || 0) + repGain;
             state.fightsWon = (state.fightsWon || 0) + 1;
-            let moneyGain = 2.00 * getMultiplier();
+            let moneyGain = 2.00 * getMultiplier() * (0.6 + quality * 0.8);
             addMoney(moneyGain);
-            document.getElementById('event-icon').innerText = '🏆';
-            document.getElementById('event-text').innerText = 'Sieg gegen ' + rivalName + '!';
-            document.getElementById('event-reward').innerText = '+' + repGain + ' Ruf-Punkte, +' + moneyGain.toFixed(2) + ' €';
+            if (resultEl) resultEl.innerHTML = '<span style="color:var(--success-color);">' + label + '<br>🏆 Sieg gegen ' + rivalName + '!</span><br>+' + repGain + ' Ruf-Punkte, +' + moneyGain.toFixed(2) + ' €';
+            if (quality >= 0.85) launchConfetti(20);
         } else {
             let repLoss = Math.round(3 + rivalPower * 0.3);
             state.reputation = Math.max(0, (state.reputation || 0) - repLoss);
-            document.getElementById('event-icon').innerText = '💥';
-            document.getElementById('event-text').innerText = 'Niederlage gegen ' + rivalName + '...';
-            document.getElementById('event-reward').innerText = '-' + repLoss + ' Ruf-Punkte';
+            if (resultEl) resultEl.innerHTML = '<span style="color:#e74c3c;">' + label + '<br>💥 Niederlage gegen ' + rivalName + '...</span><br>-' + repLoss + ' Ruf-Punkte';
         }
-        if (overlay) overlay.style.display = 'flex';
         saveGame();
+    }
+
+    function closeFightOverlay() {
+        fightResolved = true;
+        clearTimeout(fightAutoMissTimeout);
+        let marker = document.getElementById('fight-marker');
+        if (marker) marker.classList.remove('fight-marker-animate');
+        let overlay = document.getElementById('fight-overlay');
+        if (overlay) overlay.style.display = 'none';
     }
 
     function doPrestige() {
