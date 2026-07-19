@@ -320,6 +320,8 @@
                     <button class="btn-sm" style="padding:4px 8px; font-size:9px; background:#c0392b; color:#fff;" onclick="leaveClan()">Verlassen</button>
                 </div>
                 <div id="clan-board" style="font-size:11px; color:#ccc;"></div>
+                <div id="war-status" style="margin-top:10px;"></div>
+                <div id="war-history"></div>
             </div>
         </div>
 
@@ -597,6 +599,7 @@
         playerName: null, userId: null,
         clanId: null, clanName: null,
         lastMinigameTime: 0,
+        activeWarId: null, warBonusUntil: 0,
         isOG: false, ogNumber: null, ogChecked: false
     };
 
@@ -759,7 +762,11 @@
         if (amount > 0) state.totalEarned = (state.totalEarned || 0) + amount;
     }
 
-    function getMultiplier() { return 1 + (state.prestigeCount || 0) * 0.1; }
+    function getMultiplier() {
+        let base = 1 + (state.prestigeCount || 0) * 0.1;
+        if (state.warBonusUntil && state.warBonusUntil > Date.now()) base += 0.2;
+        return base;
+    }
     function getClickAmount() { return 0.05 + (state.level - 1) * 0.005; }
 
     // ---- Auth ----
@@ -1085,7 +1092,157 @@
         }
     }
 
+    async function declareWar() {
+        if (!state.clanId) return alert('Du musst in einem Clan sein, um Krieg zu erklären.');
+        if (state.activeWarId) return alert('Dein Clan führt bereits einen Krieg.');
+        let name = prompt('Namen des gegnerischen Clans eingeben:');
+        if (!name) return;
+        let opponentId = name.trim().toLowerCase().replace(/[^a-z0-9äöüß\-]/g, '');
+        if (!opponentId || opponentId === state.clanId) return alert('Ungültiger Clan-Name.');
+        try {
+            let ownSnap = await window.fbGetDoc(window.fbDoc(window.fbDb, "clans", state.clanId));
+            let oppSnap = await window.fbGetDoc(window.fbDoc(window.fbDb, "clans", opponentId));
+            if (!oppSnap.exists || !oppSnap.exists()) return alert('Diesen Clan gibt es nicht.');
+            let ownData = ownSnap.data();
+            let oppData = oppSnap.data();
+            if (ownData.activeWarId) return alert('Dein Clan führt bereits einen Krieg.');
+            if (oppData.activeWarId) return alert('Dieser Clan führt bereits einen Krieg.');
+
+            let warRef = window.fbDoc(window.fbCollection(window.fbDb, "clanWars"));
+            let warId = warRef.id;
+            let now = Date.now();
+            let warData = {
+                clanAId: state.clanId, clanAName: ownData.name,
+                clanBId: opponentId, clanBName: oppData.name,
+                startTime: now, endTime: now + 24 * 60 * 60 * 1000,
+                clanAWins: 0, clanBWins: 0, status: 'active',
+                winnerClanId: null, winnerClanName: null
+            };
+            await window.fbSetDoc(warRef, warData);
+            await window.fbSetDoc(window.fbDoc(window.fbDb, "clans", state.clanId), Object.assign({}, ownData, { activeWarId: warId }));
+            await window.fbSetDoc(window.fbDoc(window.fbDb, "clans", opponentId), Object.assign({}, oppData, { activeWarId: warId }));
+            state.activeWarId = warId;
+            saveGame();
+            refreshWarStatus();
+        } catch (e) {
+            alert('Kriegserklärung fehlgeschlagen: ' + e.message);
+        }
+    }
+
+    async function recordWarWin() {
+        if (!state.clanId || !window.fbReady) return;
+        try {
+            let clanSnap = await window.fbGetDoc(window.fbDoc(window.fbDb, "clans", state.clanId));
+            if (!clanSnap.exists || !clanSnap.exists()) return;
+            let clanData = clanSnap.data();
+            let warId = clanData.activeWarId;
+            if (!warId) return;
+            let warSnap = await window.fbGetDoc(window.fbDoc(window.fbDb, "clanWars", warId));
+            if (!warSnap.exists || !warSnap.exists()) return;
+            let war = warSnap.data();
+            if (war.status !== 'active') return;
+            let field = (war.clanAId === state.clanId) ? 'clanAWins' : (war.clanBId === state.clanId ? 'clanBWins' : null);
+            if (!field) return;
+            war[field] = (war[field] || 0) + 1;
+            await window.fbSetDoc(window.fbDoc(window.fbDb, "clanWars", warId), war);
+        } catch (e) {
+            console.log('Kriegs-Sieg konnte nicht gezählt werden:', e);
+        }
+    }
+
+    async function renderWarHistory() {
+        let historyEl = document.getElementById('war-history');
+        if (!historyEl || !state.clanId || !window.fbReady) return;
+        try {
+            let qA = window.fbQuery(window.fbCollection(window.fbDb, "clanWars"), window.fbWhere("clanAId", "==", state.clanId));
+            let qB = window.fbQuery(window.fbCollection(window.fbDb, "clanWars"), window.fbWhere("clanBId", "==", state.clanId));
+            let snapA = await window.fbGetDocs(qA);
+            let snapB = await window.fbGetDocs(qB);
+            let wars = snapA.docs.map(d => d.data()).concat(snapB.docs.map(d => d.data()));
+            wars = wars.filter(w => w.status === 'finished').sort((a, b) => b.endTime - a.endTime).slice(0, 5);
+            if (wars.length === 0) {
+                historyEl.innerHTML = '<div style="font-size:10px; color:#666; margin-top:8px;">Noch keine vergangenen Kriege.</div>';
+                return;
+            }
+            historyEl.innerHTML = '<div style="font-size:10px; color:#888; margin-top:10px; margin-bottom:4px;">Kriegs-Historie:</div>'
+                + wars.map(w => {
+                    let won = w.winnerClanId === state.clanId;
+                    let opponentName = (w.clanAId === state.clanId) ? w.clanBName : w.clanAName;
+                    let myScore = (w.clanAId === state.clanId) ? w.clanAWins : w.clanBWins;
+                    let theirScore = (w.clanAId === state.clanId) ? w.clanBWins : w.clanAWins;
+                    let color = w.winnerClanId ? (won ? 'var(--success-color)' : '#e74c3c') : '#888';
+                    let label = w.winnerClanId ? (won ? 'Sieg' : 'Niederlage') : 'Unentschieden';
+                    return '<div style="display:flex; justify-content:space-between; font-size:10px; padding:2px 0; color:' + color + ';">'
+                        + '<span>' + label + ' gg. ' + escapeHtml(opponentName) + '</span><span>' + myScore + ':' + theirScore + '</span></div>';
+                }).join('');
+        } catch (e) {
+            console.log('Kriegs-Historie konnte nicht geladen werden:', e);
+        }
+    }
+
+    async function refreshWarStatus() {
+        let statusEl = document.getElementById('war-status');
+        if (!state.clanId || !window.fbReady) {
+            if (statusEl) statusEl.innerHTML = '';
+            return;
+        }
+        try {
+            let clanSnap = await window.fbGetDoc(window.fbDoc(window.fbDb, "clans", state.clanId));
+            if (!clanSnap.exists || !clanSnap.exists()) return;
+            let clanData = clanSnap.data();
+            let warId = clanData.activeWarId || state.activeWarId;
+            if (!warId) {
+                state.activeWarId = null;
+                if (statusEl) statusEl.innerHTML = '<button class="btn-sm" style="width:100%; background:#c0392b; color:#fff; padding:8px;" onclick="declareWar()">⚔️ Clan-Krieg erklären</button>';
+                renderWarHistory();
+                return;
+            }
+            let warSnap = await window.fbGetDoc(window.fbDoc(window.fbDb, "clanWars", warId));
+            if (!warSnap.exists || !warSnap.exists()) return;
+            let war = warSnap.data();
+            state.activeWarId = warId;
+
+            if (war.status === 'active' && Date.now() >= war.endTime) {
+                let winnerId = war.clanAWins === war.clanBWins ? null : (war.clanAWins > war.clanBWins ? war.clanAId : war.clanBId);
+                let winnerName = winnerId === war.clanAId ? war.clanAName : (winnerId === war.clanBId ? war.clanBName : null);
+                war.status = 'finished';
+                war.winnerClanId = winnerId;
+                war.winnerClanName = winnerName;
+                await window.fbSetDoc(window.fbDoc(window.fbDb, "clanWars", warId), war);
+                await window.fbSetDoc(window.fbDoc(window.fbDb, "clans", state.clanId), Object.assign({}, clanData, { activeWarId: null }));
+                if (winnerId === state.clanId) {
+                    state.warBonusUntil = Date.now() + 3 * 60 * 60 * 1000;
+                    addMoney(20 * getMultiplier());
+                    launchConfetti(40);
+                }
+                state.activeWarId = null;
+                saveGame();
+                refreshWarStatus();
+                return;
+            }
+
+            let myWins = (war.clanAId === state.clanId) ? war.clanAWins : war.clanBWins;
+            let theirWins = (war.clanAId === state.clanId) ? war.clanBWins : war.clanAWins;
+            let opponentName = (war.clanAId === state.clanId) ? war.clanBName : war.clanAName;
+            let remainingMs = Math.max(0, war.endTime - Date.now());
+            let hoursLeft = Math.floor(remainingMs / 3600000);
+            let minsLeft = Math.floor((remainingMs % 3600000) / 60000);
+
+            if (statusEl) {
+                statusEl.innerHTML = '<div style="background:#222; border-radius:8px; padding:10px; text-align:center;">'
+                    + '<div style="font-size:12px; color:#aaa; margin-bottom:4px;">⚔️ Krieg gegen ' + escapeHtml(opponentName) + '</div>'
+                    + '<div style="font-size:18px; font-weight:bold; color:var(--accent-color);">' + myWins + ' : ' + theirWins + '</div>'
+                    + '<div style="font-size:10px; color:#888; margin-top:4px;">Noch ' + hoursLeft + 'h ' + minsLeft + 'min</div>'
+                    + '</div>';
+            }
+            renderWarHistory();
+        } catch (e) {
+            console.log('Kriegsstatus konnte nicht geladen werden:', e);
+        }
+    }
+
     async function refreshClanBoard() {
+        refreshWarStatus();
         let noneEl = document.getElementById('clan-none');
         let activeEl = document.getElementById('clan-active');
         if (!noneEl || !activeEl) return;
@@ -1440,6 +1597,7 @@
             let repGain = Math.round((5 + rivalPower * 0.5) * (0.6 + quality * 0.8));
             state.reputation = (state.reputation || 0) + repGain;
             state.fightsWon = (state.fightsWon || 0) + 1;
+            recordWarWin();
             let moneyGain = 2.00 * getMultiplier() * (0.6 + quality * 0.8);
             addMoney(moneyGain);
             if (resultEl) resultEl.innerHTML = '<span style="color:var(--success-color);">' + label + '<br>🏆 Sieg gegen ' + rivalName + '!</span><br>+' + repGain + ' Ruf-Punkte, +' + moneyGain.toFixed(2) + ' €';
