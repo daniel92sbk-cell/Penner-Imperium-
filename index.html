@@ -833,6 +833,7 @@
             let snap = await window.fbGetDocs(q);
             if (snap.empty) return alert('Diesen Spieler gibt es nicht oder er hat noch nicht gespielt.');
             let opponent = snap.docs[0].data();
+            let opponentId = snap.docs[0].id;
 
             let myPower = (state.attackPoints || 1) * 1.5 + (state.defensePoints || 1) * 0.5;
             let theirPower = (opponent.defensePoints || 1) * 1.5 + (opponent.attackPoints || 1) * 0.5;
@@ -842,12 +843,14 @@
             state.duelEnd = Date.now() + 60000;
 
             let overlay = document.getElementById('event-overlay');
+            let opponentRepChange = 0;
             if (won) {
                 let moneyGain = 5.00 * getMultiplier();
                 let repGain = 8;
                 addMoney(moneyGain);
                 state.reputation = (state.reputation || 0) + repGain;
                 state.duelsWon = (state.duelsWon || 0) + 1;
+                opponentRepChange = -5;
                 document.getElementById('event-icon').innerText = '🥊';
                 document.getElementById('event-text').innerText = 'Duell-Sieg gegen ' + escapeHtml(name) + '!';
                 document.getElementById('event-reward').innerText = '+' + repGain + ' Ruf-Punkte, +' + moneyGain.toFixed(2) + ' €';
@@ -856,6 +859,7 @@
             } else {
                 let repLoss = 5;
                 state.reputation = Math.max(0, (state.reputation || 0) - repLoss);
+                opponentRepChange = 8;
                 document.getElementById('event-icon').innerText = '💥';
                 document.getElementById('event-text').innerText = 'Duell-Niederlage gegen ' + escapeHtml(name) + '...';
                 document.getElementById('event-reward').innerText = '-' + repLoss + ' Ruf-Punkte';
@@ -864,8 +868,55 @@
             if (overlay) overlay.style.display = 'flex';
             saveGame();
             syncLeaderboard();
+
+            try {
+                let resultRef = window.fbDoc(window.fbCollection(window.fbDb, "duelResults"));
+                await window.fbSetDoc(resultRef, {
+                    targetUserId: opponentId,
+                    fromName: state.playerName,
+                    repChange: opponentRepChange,
+                    processed: false,
+                    timestamp: Date.now()
+                });
+            } catch (e2) {
+                console.log('Duell-Ergebnis konnte nicht zugestellt werden:', e2);
+            }
         } catch (e) {
             alert('Herausforderung fehlgeschlagen: ' + e.message);
+        }
+    }
+
+    async function checkIncomingDuelResults() {
+        if (!state.userId || !window.fbReady) return;
+        try {
+            let q = window.fbQuery(
+                window.fbCollection(window.fbDb, "duelResults"),
+                window.fbWhere("targetUserId", "==", state.userId)
+            );
+            let snap = await window.fbGetDocs(q);
+            let pending = snap.docs.filter(d => !d.data().processed);
+            if (pending.length === 0) return;
+            let totalChange = 0;
+            let lines = [];
+            for (let docSnap of pending) {
+                let data = docSnap.data();
+                let change = data.repChange || 0;
+                totalChange += change;
+                lines.push((change > 0 ? '🏆' : '💥') + ' Gegen ' + escapeHtml(data.fromName || 'Unbekannt') + ': ' + (change > 0 ? '+' : '') + change + ' Ruf-Punkte');
+                await window.fbSetDoc(docSnap.ref, Object.assign({}, data, { processed: true }));
+            }
+            state.reputation = Math.max(0, (state.reputation || 0) + totalChange);
+            saveGame();
+            syncLeaderboard();
+            let overlay = document.getElementById('event-overlay');
+            if (overlay && lines.length > 0) {
+                document.getElementById('event-icon').innerText = '⚔️';
+                document.getElementById('event-text').innerText = 'Du wurdest herausgefordert!';
+                document.getElementById('event-reward').innerHTML = lines.join('<br>');
+                overlay.style.display = 'flex';
+            }
+        } catch (e) {
+            console.log('Duell-Ergebnisse konnten nicht geprüft werden:', e);
         }
     }
 
@@ -1097,10 +1148,12 @@
         refreshLeaderboard();
         refreshGlobalClanLeaderboard();
         refreshActiveWarsFeed();
+        checkIncomingDuelResults();
         setInterval(syncLeaderboard, 5000);
         setInterval(refreshLeaderboard, 8000);
         setInterval(refreshGlobalClanLeaderboard, 8000);
         setInterval(refreshActiveWarsFeed, 8000);
+        setInterval(checkIncomingDuelResults, 10000);
         setInterval(saveGameToCloud, 15000);
 
         setInterval(triggerEvent, 300000);
