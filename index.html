@@ -210,6 +210,7 @@
     <div class="tab-navigation">
         <div class="tab-btn active" onclick="switchTab('tab-stadt')"><i class="fas fa-city"></i>Stadt</div>
         <div class="tab-btn" onclick="switchTab('tab-shop')"><i class="fas fa-basket-shopping"></i>Shops</div>
+        <div class="tab-btn" onclick="switchTab('tab-training')"><i class="fas fa-dumbbell"></i>Training</div>
         <div class="tab-btn" onclick="switchTab('tab-clan')"><i class="fas fa-shield-halved"></i>Kiez & Clan</div>
         <div class="tab-btn" onclick="switchTab('tab-konto')"><i class="fas fa-user"></i>Konto</div>
     </div>
@@ -304,6 +305,37 @@
 
         <div class="section-title"><i class="fas fa-car icon"></i>Fuhrpark (Flaschenwert steigern)</div>
         <div class="upgrade-list" id="shop-cars-list"></div>
+    </div>
+
+    <!-- TAB: TRAINING -->
+    <div id="tab-training" class="tab-content">
+        <div class="job-card" style="text-align:center;">
+            <div class="dashboard-avatar" style="width:70px; height:70px; font-size:32px;">🥊</div>
+            <div id="training-name" style="font-weight:bold; font-size:16px; margin-bottom:2px;">Gast</div>
+            <div style="font-size:11px; color:#999; margin-bottom:14px;">Bereite dich auf zukünftige Penner-Duelle vor</div>
+            <div class="dashboard-stats-grid">
+                <div class="dashboard-stat-box"><div style="font-size:9px; color:#888;">ANGRIFF</div><div id="train-attack-display" style="font-weight:bold; color:var(--accent-color); font-size:16px;">1</div></div>
+                <div class="dashboard-stat-box"><div style="font-size:9px; color:#888;">VERTEIDIGUNG</div><div id="train-defense-display" style="font-weight:bold; color:var(--accent-color); font-size:16px;">1</div></div>
+            </div>
+        </div>
+
+        <div class="section-title"><i class="fas fa-hand-fist icon"></i>Angriff trainieren</div>
+        <div class="job-card">
+            <div class="item-desc" style="margin-bottom:8px;">Erhöht deinen Angriffswert für zukünftige Penner-Duelle.</div>
+            <button id="btn-train-attack" class="btn-sm" style="width:100%; background:#c0392b; color:#fff; padding:10px;" onclick="trainAttack()">+1 Angriff (<span id="cost-attack">3.00 €</span>)</button>
+        </div>
+
+        <div class="section-title"><i class="fas fa-shield icon"></i>Verteidigung trainieren</div>
+        <div class="job-card">
+            <div class="item-desc" style="margin-bottom:8px;">Erhöht deinen Verteidigungswert für zukünftige Penner-Duelle.</div>
+            <button id="btn-train-defense" class="btn-sm" style="width:100%; background:#2980b9; color:#fff; padding:10px;" onclick="trainDefense()">+1 Verteidigung (<span id="cost-defense">3.00 €</span>)</button>
+        </div>
+
+        <div class="section-title"><i class="fas fa-people-arrows icon"></i>Penner-Duell</div>
+        <div class="job-card">
+            <div class="item-desc" style="margin-bottom:8px;">Fordere einen anderen Spieler namentlich heraus. Angriff gegen Verteidigung entscheidet, wer gewinnt!</div>
+            <button id="btn-challenge-player" class="btn-sm" style="width:100%; background:#8e44ad; color:#fff; padding:10px;" onclick="challengePlayer()">⚔️ Spieler herausfordern</button>
+        </div>
     </div>
 
     <!-- TAB: KIEZ & CLAN -->
@@ -618,6 +650,8 @@
         activeWarId: null, warBonusUntil: 0,
         soundEnabled: true,
         dailyChallengeDate: '', dailyMoneyEarned: 0, dailyFightsWon: 0, dailyMinigameCatches: 0, dailyChallengeClaimed: false,
+        attackPoints: 1, defensePoints: 1,
+        duelEnd: 0, duelsWon: 0,
         isOG: false, ogNumber: null, ogChecked: false
     };
 
@@ -783,6 +817,109 @@
             state.dailyMoneyEarned = (state.dailyMoneyEarned || 0) + amount;
         }
     }
+
+    async function challengePlayer() {
+        if (state.duelEnd > Date.now()) return;
+        let name = prompt('Namen des Spielers eingeben, den du herausfordern willst:');
+        if (!name) return;
+        name = name.trim();
+        if (!name || name === state.playerName) return alert('Ungültiger Name oder du kannst dich nicht selbst herausfordern.');
+        try {
+            let q = window.fbQuery(
+                window.fbCollection(window.fbDb, "leaderboard"),
+                window.fbWhere("name", "==", name),
+                window.fbLimit(1)
+            );
+            let snap = await window.fbGetDocs(q);
+            if (snap.empty) return alert('Diesen Spieler gibt es nicht oder er hat noch nicht gespielt.');
+            let opponent = snap.docs[0].data();
+
+            let myPower = (state.attackPoints || 1) * 1.5 + (state.defensePoints || 1) * 0.5;
+            let theirPower = (opponent.defensePoints || 1) * 1.5 + (opponent.attackPoints || 1) * 0.5;
+            let winChance = Math.min(0.9, Math.max(0.1, myPower / (myPower + theirPower)));
+            let won = Math.random() < winChance;
+
+            state.duelEnd = Date.now() + 60000;
+
+            let overlay = document.getElementById('event-overlay');
+            if (won) {
+                let moneyGain = 5.00 * getMultiplier();
+                let repGain = 8;
+                addMoney(moneyGain);
+                state.reputation = (state.reputation || 0) + repGain;
+                state.duelsWon = (state.duelsWon || 0) + 1;
+                document.getElementById('event-icon').innerText = '🥊';
+                document.getElementById('event-text').innerText = 'Duell-Sieg gegen ' + escapeHtml(name) + '!';
+                document.getElementById('event-reward').innerText = '+' + repGain + ' Ruf-Punkte, +' + moneyGain.toFixed(2) + ' €';
+                playSound('win');
+                launchConfetti(15);
+            } else {
+                let repLoss = 5;
+                state.reputation = Math.max(0, (state.reputation || 0) - repLoss);
+                document.getElementById('event-icon').innerText = '💥';
+                document.getElementById('event-text').innerText = 'Duell-Niederlage gegen ' + escapeHtml(name) + '...';
+                document.getElementById('event-reward').innerText = '-' + repLoss + ' Ruf-Punkte';
+                playSound('lose');
+            }
+            if (overlay) overlay.style.display = 'flex';
+            saveGame();
+            syncLeaderboard();
+        } catch (e) {
+            alert('Herausforderung fehlgeschlagen: ' + e.message);
+        }
+    }
+
+    function getTrainCost(current) { return 3 + current * 2; }
+
+    function trainAttack() {
+        let cost = getTrainCost(state.attackPoints || 1);
+        if (state.money < cost) return;
+        state.money -= cost;
+        state.attackPoints = (state.attackPoints || 1) + 1;
+        playSound('coin');
+        saveGame();
+    }
+
+    function trainDefense() {
+        let cost = getTrainCost(state.defensePoints || 1);
+        if (state.money < cost) return;
+        state.money -= cost;
+        state.defensePoints = (state.defensePoints || 1) + 1;
+        playSound('coin');
+        saveGame();
+    }
+
+    function updateTrainingUI() {
+        let nameEl = document.getElementById('training-name');
+        if (nameEl) nameEl.innerText = state.playerName || 'Gast';
+        let atkEl = document.getElementById('train-attack-display');
+        if (atkEl) atkEl.innerText = state.attackPoints || 1;
+        let defEl = document.getElementById('train-defense-display');
+        if (defEl) defEl.innerText = state.defensePoints || 1;
+        let atkCost = getTrainCost(state.attackPoints || 1);
+        let defCost = getTrainCost(state.defensePoints || 1);
+        let costAtkEl = document.getElementById('cost-attack');
+        if (costAtkEl) costAtkEl.innerText = atkCost.toFixed(2) + ' €';
+        let costDefEl = document.getElementById('cost-defense');
+        if (costDefEl) costDefEl.innerText = defCost.toFixed(2) + ' €';
+        let btnAtk = document.getElementById('btn-train-attack');
+        if (btnAtk) btnAtk.disabled = state.money < atkCost;
+        let btnDef = document.getElementById('btn-train-defense');
+        if (btnDef) btnDef.disabled = state.money < defCost;
+
+        let btnDuel = document.getElementById('btn-challenge-player');
+        if (btnDuel) {
+            let duelRemaining = state.duelEnd - Date.now();
+            if (duelRemaining > 0) {
+                btnDuel.disabled = true;
+                btnDuel.innerText = 'Erhole dich... (' + Math.ceil(duelRemaining / 1000) + 's)';
+            } else {
+                btnDuel.disabled = false;
+                btnDuel.innerHTML = '⚔️ Spieler herausfordern';
+            }
+        }
+    }
+    setInterval(updateTrainingUI, 1000);
 
     function getMultiplier() {
         let base = 1 + (state.prestigeCount || 0) * 0.1;
@@ -983,6 +1120,8 @@
                 clanId: state.clanId || null,
                 clanName: state.clanName || null,
                 ogPlayer: state.isOG || false,
+                attackPoints: state.attackPoints || 1,
+                defensePoints: state.defensePoints || 1,
                 updated: Date.now()
             });
         } catch (e) {
