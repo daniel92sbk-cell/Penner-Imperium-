@@ -340,6 +340,15 @@
 
     <!-- TAB: KIEZ & CLAN -->
     <div id="tab-clan" class="tab-content">
+        <div class="section-title"><i class="fas fa-comments icon"></i>Globaler Chat</div>
+        <div class="job-card">
+            <div id="global-chat-messages" style="max-height:150px; overflow-y:auto; font-size:12px; margin-bottom:8px; padding-right:4px;"></div>
+            <div style="display:flex; gap:6px;">
+                <input id="global-chat-input" type="text" placeholder="Nachricht..." class="login-input" style="margin-bottom:0; flex:1;" maxlength="200">
+                <button class="btn-sm" style="background:var(--accent-color); color:#1e1e1e; padding:0 14px;" onclick="sendGlobalChatMessage()"><i class="fas fa-paper-plane"></i></button>
+            </div>
+        </div>
+
         <div class="section-title"><i class="fas fa-hand-fist icon"></i>Kiez-Kampf (Ruf-Punkte)</div>
         <div class="job-card">
             <div style="display:flex; justify-content:space-between; font-size:12px; color:#aaa; margin-bottom:8px;">
@@ -364,6 +373,14 @@
                 <div id="clan-board" style="font-size:11px; color:#ccc;"></div>
                 <div id="war-status" style="margin-top:10px;"></div>
                 <div id="war-history"></div>
+                <div style="margin-top:12px;">
+                    <div style="font-size:10px; color:#888; margin-bottom:4px;">Clan-Chat:</div>
+                    <div id="clan-chat-messages" style="max-height:120px; overflow-y:auto; font-size:11px; margin-bottom:6px; background:#1a1a1a; border-radius:6px; padding:6px;"></div>
+                    <div style="display:flex; gap:6px;">
+                        <input id="clan-chat-input" type="text" placeholder="An deinen Clan..." class="login-input" style="margin-bottom:0; flex:1; font-size:12px;" maxlength="200">
+                        <button class="btn-sm" style="background:var(--accent-color); color:#1e1e1e; padding:0 12px;" onclick="sendClanChatMessage()"><i class="fas fa-paper-plane"></i></button>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -387,6 +404,8 @@
     <div id="tab-konto" class="tab-content">
         <div class="job-card" style="text-align:center;">
             <div id="dashboard-avatar" class="dashboard-avatar">🧍</div>
+            <input type="file" id="avatar-file-input" accept="image/*" style="display:none;" onchange="handleAvatarUpload(event)">
+            <button class="btn-sm" style="background:#333; color:#fff; padding:6px 14px; margin-bottom:8px;" onclick="document.getElementById('avatar-file-input').click()"><i class="fas fa-camera"></i> Eigenes Bild hochladen</button>
             <div id="dashboard-name" class="dashboard-name">Gast</div>
             <div id="dashboard-title" class="dashboard-subtitle">Frischling auf der Straße</div>
             <button id="sound-toggle-btn" class="btn-sm" style="background:#333; color:#fff; padding:6px 14px; margin-bottom:10px;" onclick="toggleSound()"><i class="fas fa-volume-up"></i> Sound</button>
@@ -1149,11 +1168,14 @@
         refreshGlobalClanLeaderboard();
         refreshActiveWarsFeed();
         checkIncomingDuelResults();
+        refreshGlobalChat();
+        loadProfileImageFromCloud();
         setInterval(syncLeaderboard, 5000);
         setInterval(refreshLeaderboard, 8000);
         setInterval(refreshGlobalClanLeaderboard, 8000);
         setInterval(refreshActiveWarsFeed, 8000);
         setInterval(checkIncomingDuelResults, 10000);
+        setInterval(refreshGlobalChat, 6000);
         setInterval(saveGameToCloud, 15000);
 
         setInterval(triggerEvent, 300000);
@@ -1302,6 +1324,80 @@
             }).join('');
         } catch (e) {
             el.innerHTML = "Aktive Kriege momentan nicht verfügbar.";
+        }
+    }
+
+    async function sendGlobalChatMessage() {
+        let input = document.getElementById('global-chat-input');
+        if (!input) return;
+        let text = input.value.trim().slice(0, 200);
+        if (!text) return;
+        if (!state.userId) return alert('Bitte zuerst einloggen, um zu chatten.');
+        try {
+            let msgRef = window.fbDoc(window.fbCollection(window.fbDb, "globalChat"));
+            await window.fbSetDoc(msgRef, { userId: state.userId, name: state.playerName, text: text, timestamp: Date.now() });
+            input.value = '';
+            refreshGlobalChat();
+        } catch (e) {
+            alert('Nachricht konnte nicht gesendet werden: ' + e.message);
+        }
+    }
+
+    async function refreshGlobalChat() {
+        let el = document.getElementById('global-chat-messages');
+        if (!el || !window.fbReady) return;
+        try {
+            let q = window.fbQuery(
+                window.fbCollection(window.fbDb, "globalChat"),
+                window.fbOrderBy("timestamp", "desc"),
+                window.fbLimit(30)
+            );
+            let snap = await window.fbGetDocs(q);
+            let messages = snap.docs.map(d => d.data()).reverse();
+            el.innerHTML = messages.map(m => {
+                let mine = (m.name === state.playerName) ? 'color:#f39c12;' : '';
+                return '<div style="margin-bottom:4px;"><span style="font-weight:bold; ' + mine + '">' + escapeHtml(m.name) + ':</span> ' + escapeHtml(m.text) + '</div>';
+            }).join('') || '<div style="color:#666;">Noch keine Nachrichten.</div>';
+            el.scrollTop = el.scrollHeight;
+        } catch (e) {
+            el.innerHTML = 'Chat momentan nicht verfügbar.';
+        }
+    }
+
+    async function sendClanChatMessage() {
+        let input = document.getElementById('clan-chat-input');
+        if (!input) return;
+        let text = input.value.trim().slice(0, 200);
+        if (!text) return;
+        if (!state.clanId) return alert('Du musst in einem Clan sein, um im Clan-Chat zu schreiben.');
+        try {
+            let msgRef = window.fbDoc(window.fbCollection(window.fbDb, "clanChat"));
+            await window.fbSetDoc(msgRef, { clanId: state.clanId, name: state.playerName, text: text, timestamp: Date.now() });
+            input.value = '';
+            refreshClanChat();
+        } catch (e) {
+            alert('Nachricht konnte nicht gesendet werden: ' + e.message);
+        }
+    }
+
+    async function refreshClanChat() {
+        let el = document.getElementById('clan-chat-messages');
+        if (!el || !state.clanId || !window.fbReady) return;
+        try {
+            let q = window.fbQuery(
+                window.fbCollection(window.fbDb, "clanChat"),
+                window.fbWhere("clanId", "==", state.clanId),
+                window.fbLimit(50)
+            );
+            let snap = await window.fbGetDocs(q);
+            let messages = snap.docs.map(d => d.data()).sort((a, b) => a.timestamp - b.timestamp).slice(-30);
+            el.innerHTML = messages.map(m => {
+                let mine = (m.name === state.playerName) ? 'color:#f39c12;' : '';
+                return '<div style="margin-bottom:4px;"><span style="font-weight:bold; ' + mine + '">' + escapeHtml(m.name) + ':</span> ' + escapeHtml(m.text) + '</div>';
+            }).join('') || '<div style="color:#666;">Noch keine Nachrichten.</div>';
+            el.scrollTop = el.scrollHeight;
+        } catch (e) {
+            el.innerHTML = 'Clan-Chat momentan nicht verfügbar.';
         }
     }
 
@@ -1490,6 +1586,7 @@
 
     async function refreshClanBoard() {
         refreshWarStatus();
+        refreshClanChat();
         let noneEl = document.getElementById('clan-none');
         let activeEl = document.getElementById('clan-active');
         if (!noneEl || !activeEl) return;
@@ -1570,6 +1667,57 @@
         }
     }
 
+    function handleAvatarUpload(event) {
+        let file = event.target.files[0];
+        if (!file) return;
+        if (file.size > 8 * 1024 * 1024) { alert('Bild ist zu groß (max. 8 MB).'); return; }
+        let reader = new FileReader();
+        reader.onload = function (e) {
+            let img = new Image();
+            img.onload = function () {
+                let canvas = document.createElement('canvas');
+                let size = 150;
+                canvas.width = size; canvas.height = size;
+                let ctx = canvas.getContext('2d');
+                let scale = Math.max(size / img.width, size / img.height);
+                let w = img.width * scale, h = img.height * scale;
+                ctx.drawImage(img, (size - w) / 2, (size - h) / 2, w, h);
+                let dataUrl = canvas.toDataURL('image/jpeg', 0.7);
+                state.profileImage = dataUrl;
+                saveGame();
+                saveProfileImageToCloud();
+                updateDashboard();
+            };
+            img.src = e.target.result;
+        };
+        reader.readAsDataURL(file);
+    }
+
+    async function saveProfileImageToCloud() {
+        if (!state.userId || !window.fbReady || !state.profileImage) return;
+        try {
+            await window.fbSetDoc(window.fbDoc(window.fbDb, "profileImages", state.userId), { imageData: state.profileImage, updatedAt: Date.now() });
+        } catch (e) {
+            console.log('Profilbild konnte nicht gespeichert werden:', e);
+        }
+    }
+
+    async function loadProfileImageFromCloud() {
+        if (!state.userId || !window.fbReady) return;
+        try {
+            let snap = await window.fbGetDoc(window.fbDoc(window.fbDb, "profileImages", state.userId));
+            if (snap.exists && snap.exists()) {
+                let data = snap.data();
+                if (data && data.imageData) {
+                    state.profileImage = data.imageData;
+                    updateDashboard();
+                }
+            }
+        } catch (e) {
+            console.log('Profilbild konnte nicht geladen werden:', e);
+        }
+    }
+
     function getAvatarEmoji() {
         if (state.prestigeCount >= 3) return '💎';
         if (state.prestigeCount >= 1) return '🌟';
@@ -1616,7 +1764,17 @@
 
     function updateDashboard() {
         let avatarEl = document.getElementById('dashboard-avatar');
-        if (avatarEl) avatarEl.innerText = getAvatarEmoji();
+        if (avatarEl) {
+            if (state.profileImage) {
+                avatarEl.style.backgroundImage = 'url(' + state.profileImage + ')';
+                avatarEl.style.backgroundSize = 'cover';
+                avatarEl.style.backgroundPosition = 'center';
+                avatarEl.innerText = '';
+            } else {
+                avatarEl.style.backgroundImage = '';
+                avatarEl.innerText = getAvatarEmoji();
+            }
+        }
         let nameEl = document.getElementById('dashboard-name');
         if (nameEl) nameEl.innerText = state.playerName || 'Gast';
         let titleEl = document.getElementById('dashboard-title');
