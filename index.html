@@ -679,6 +679,7 @@
         attackPoints: 1, defensePoints: 1,
         duelEnd: 0, duelsWon: 0,
         homeUpgradeLevel: 0, petUpgradeLevel: 0, carUpgradeLevel: 0, employeeUpgradeLevel: 0, gearUpgradeLevel: 0,
+        shopCooldownEnd: 0,
         isOG: false, ogNumber: null, ogChecked: false
     };
 
@@ -829,6 +830,29 @@
         { key: 'car', label: 'Fahrzeug', list: CARS, activeField: 'activeCar' }
     ];
 
+    function getShopCooldownDuration(cost) {
+        let duration = 150 * Math.pow(cost, 1.44);
+        return Math.min(86400000, Math.max(0, duration));
+    }
+
+    function formatCooldownTime(ms) {
+        let totalSec = Math.ceil(ms / 1000);
+        let hours = Math.floor(totalSec / 3600);
+        let mins = Math.floor((totalSec % 3600) / 60);
+        let secs = totalSec % 60;
+        if (hours > 0) return hours + 'h ' + mins + 'm';
+        if (mins > 0) return mins + 'm ' + secs + 's';
+        return secs + 's';
+    }
+
+    function isShopOnCooldown() {
+        return state.shopCooldownEnd > Date.now();
+    }
+
+    function startShopCooldown(cost) {
+        state.shopCooldownEnd = Date.now() + getShopCooldownDuration(cost);
+    }
+
     function getRefineCost(baseItemCost, level) {
         return Math.round(baseItemCost * (level + 1) * 1.8);
     }
@@ -848,6 +872,7 @@
     }
 
     function refineItem(cat) {
+        if (isShopOnCooldown()) return;
         let levelField = cat + 'UpgradeLevel';
         let currentLevel = state[levelField] || 0;
         if (currentLevel >= 5) return;
@@ -858,12 +883,15 @@
         state.money -= cost;
         state[levelField] = currentLevel + 1;
         if (cat === 'car') recomputeBottlePrice();
+        startShopCooldown(cost);
         playSound('coin');
         saveGame();
         renderRefineBlocks();
     }
 
     function renderRefineBlocks() {
+        let onCooldown = isShopOnCooldown();
+        let cooldownSecs = onCooldown ? Math.ceil((state.shopCooldownEnd - Date.now()) / 1000) : 0;
         REFINE_CATEGORIES.forEach(def => {
             let el = document.getElementById('refine-' + def.key + '-block');
             if (!el) return;
@@ -871,14 +899,17 @@
             let baseCost = getBaseCostForCategory(def.key);
             let maxed = level >= 5;
             let cost = maxed ? 0 : getRefineCost(baseCost, level);
-            let disabled = maxed || baseCost <= 0 || state.money < cost;
+            let disabled = maxed || baseCost <= 0 || state.money < cost || onCooldown;
+            let btnLabel = maxed ? 'Maximal veredelt ✓'
+                : onCooldown ? '⏳ Warte noch ' + formatCooldownTime(state.shopCooldownEnd - Date.now())
+                : (baseCost <= 0 ? 'Kein Item vorhanden' : def.label + ' veredeln (' + cost.toFixed(2) + ' €)');
             el.innerHTML = '<div class="job-card" style="margin-top:6px; margin-bottom:14px;">'
                 + '<div style="display:flex; justify-content:space-between; font-size:11px; color:#aaa; margin-bottom:6px;">'
                 + '<span>Veredelung: ' + level + ' / 5</span>'
                 + (level > 0 ? '<span style="color:var(--success-color);">+' + (level * 15) + '% Effekt</span>' : '<span></span>')
                 + '</div>'
                 + '<button class="btn-sm" style="width:100%; background:#9b59b6; color:#fff; padding:8px;" ' + (disabled ? 'disabled' : '') + ' onclick="refineItem(\'' + def.key + '\')">'
-                + (maxed ? 'Maximal veredelt ✓' : (baseCost <= 0 ? 'Kein Item vorhanden' : def.label + ' veredeln (' + cost.toFixed(2) + ' €)'))
+                + btnLabel
                 + '</button>'
                 + '</div>';
         });
@@ -894,11 +925,19 @@
     }
 
     function buyShopItem(prefix, id) {
+        if (isShopOnCooldown()) return;
+        let lists = { home: HOMES, pet: PETS, gear: EQUIPMENT, employee: EMPLOYEES, car: CARS };
+        let list = lists[prefix];
+        let item = list ? list.find(x => x.id === id) : null;
+        if (!item || state.money < item.cost) return;
+
         if (prefix === 'home') buyHome(id);
         if (prefix === 'pet') buyPet(id);
         if (prefix === 'gear') buyGear(id);
         if (prefix === 'employee') buyEmployee(id);
         if (prefix === 'car') buyCar(id);
+
+        startShopCooldown(item.cost);
     }
 
     function addMoney(amount) {
@@ -2434,6 +2473,8 @@
     }
 
     function updateShopButtons(list, prefix, currentId) {
+        let onCooldown = isShopOnCooldown();
+        let cooldownSecs = onCooldown ? Math.ceil((state.shopCooldownEnd - Date.now()) / 1000) : 0;
         let curIdx = list.findIndex(x => x.id === currentId);
         list.forEach((item, idx) => {
             let btn = document.getElementById('btn-' + prefix + '-' + item.id);
@@ -2446,6 +2487,10 @@
                 btn.className = 'shop-btn owned';
                 btn.disabled = true;
                 btn.innerText = 'Ersetzt';
+            } else if (onCooldown) {
+                btn.className = 'shop-btn';
+                btn.disabled = true;
+                btn.innerText = '⏳ ' + formatCooldownTime(state.shopCooldownEnd - Date.now());
             } else if (state.money >= item.cost) {
                 btn.className = 'shop-btn affordable';
                 btn.disabled = false;
@@ -2577,6 +2622,8 @@
         updateShopButtons(CARS, 'car', state.activeCar);
         updateShopButtons(EMPLOYEES, 'employee', state.activeEmployee);
         updateShopButtons(EQUIPMENT, 'gear', state.activeGear);
+        renderRefineBlocks();
+        renderRefineBlocks();
 
         let cpEl = document.getElementById('combat-power');
         if (cpEl) cpEl.innerText = getCombatPower();
