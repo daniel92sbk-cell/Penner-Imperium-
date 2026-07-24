@@ -482,8 +482,27 @@
     </div>
 </div>
 
+<!-- Spieler-Profil Popup -->
+<div id="player-profile-overlay" class="event-overlay">
+    <div class="event-box" style="max-width:340px; text-align:center;">
+        <div id="profile-view-avatar" class="dashboard-avatar" style="margin:0 auto 10px auto;">🧍</div>
+        <div id="profile-view-name" style="font-size:18px; font-weight:bold; color:#fff; margin-bottom:2px;"></div>
+        <div id="profile-view-rank" style="font-size:11px; color:#c0392b; font-weight:bold; margin-bottom:10px;"></div>
+        <div class="dashboard-stats-grid">
+            <div class="dashboard-stat-box"><div style="font-size:9px; color:#888;">LEVEL</div><div id="profile-view-level" style="font-weight:bold; color:var(--accent-color);"></div></div>
+            <div class="dashboard-stat-box"><div style="font-size:9px; color:#888;">KAMPFPUNKTE</div><div id="profile-view-rep" style="font-weight:bold; color:var(--accent-color);"></div></div>
+            <div class="dashboard-stat-box"><div style="font-size:9px; color:#888;">KONTOSTAND</div><div id="profile-view-money" style="font-weight:bold; color:var(--accent-color);"></div></div>
+            <div class="dashboard-stat-box"><div style="font-size:9px; color:#888;">CLAN</div><div id="profile-view-clan" style="font-weight:bold; color:var(--accent-color);"></div></div>
+        </div>
+        <div class="section-title" style="text-align:left; margin-top:14px;"><i class="fas fa-medal icon"></i>Auszeichnungen</div>
+        <div id="profile-view-badges" class="badge-grid"></div>
+        <button class="btn-sm" style="width:100%; margin-top:14px; background:#333; color:#aaa;" onclick="closePlayerProfile()">Schließen</button>
+    </div>
+</div>
+
 <!-- Minispiel Popup -->
 <div id="minigame-overlay" class="event-overlay">
+
     <div class="event-box" style="max-width:340px;">
         <div class="event-icon">🎯</div>
         <div class="event-text" style="margin-bottom:10px;">Flaschen fangen!</div>
@@ -1314,6 +1333,7 @@
                 ogPlayer: state.isOG || false,
                 attackPoints: state.attackPoints || 1,
                 defensePoints: state.defensePoints || 1,
+                unlockedAchievements: state.unlockedAchievements || [],
                 updated: Date.now()
             });
         } catch (e) {
@@ -1772,6 +1792,52 @@
         }
     }
 
+    async function viewPlayerProfile(uid) {
+        if (!uid || !window.fbReady) return;
+        try {
+            let snap = await window.fbGetDoc(window.fbDoc(window.fbDb, "leaderboard", uid));
+            if (!snap.exists || !snap.exists()) return;
+            let data = snap.data();
+            let imageMap = await fetchProfileImages([uid]);
+
+            let avatarEl = document.getElementById('profile-view-avatar');
+            if (avatarEl) {
+                if (imageMap[uid]) {
+                    avatarEl.style.backgroundImage = 'url(' + imageMap[uid] + ')';
+                    avatarEl.style.backgroundSize = 'cover';
+                    avatarEl.style.backgroundPosition = 'center';
+                    avatarEl.innerText = '';
+                } else {
+                    avatarEl.style.backgroundImage = '';
+                    avatarEl.innerText = '🧍';
+                }
+            }
+            document.getElementById('profile-view-name').innerText = data.name || 'Unbekannt';
+            document.getElementById('profile-view-rank').innerText = '🎖️ ' + getCombatRank((data.attackPoints || 1) + (data.defensePoints || 1));
+            document.getElementById('profile-view-level').innerText = data.level || 1;
+            document.getElementById('profile-view-rep').innerText = '👊 ' + (data.reputation || 0);
+            document.getElementById('profile-view-money').innerText = (data.money || 0).toFixed(2) + ' €';
+            document.getElementById('profile-view-clan').innerText = data.clanName || 'Kein Clan';
+
+            let badgeGrid = document.getElementById('profile-view-badges');
+            if (badgeGrid) {
+                let unlocked = data.unlockedAchievements || [];
+                badgeGrid.innerHTML = ACHIEVEMENTS.map(a => {
+                    let has = unlocked.includes(a.id);
+                    return '<div class="badge ' + (has ? 'unlocked' : 'locked') + '">' + (has ? '🏅' : '<i class="fas fa-lock"></i>') + '</div>';
+                }).join('');
+            }
+            document.getElementById('player-profile-overlay').style.display = 'flex';
+        } catch (e) {
+            console.log('Profil konnte nicht geladen werden:', e);
+        }
+    }
+
+    function closePlayerProfile() {
+        let overlay = document.getElementById('player-profile-overlay');
+        if (overlay) overlay.style.display = 'none';
+    }
+
     async function fetchProfileImages(uids) {
         let map = {};
         let uniqueUids = [...new Set(uids)].filter(u => u);
@@ -1814,7 +1880,7 @@
                     let avatarHtml = imageMap[e.uid]
                         ? '<img src="' + imageMap[e.uid] + '" style="width:20px; height:20px; border-radius:50%; object-fit:cover; vertical-align:middle; margin-right:4px;">'
                         : '';
-                    return '<div style="display:flex; justify-content:space-between; align-items:center; padding:2px 0; ' + highlight + '">'
+                    return '<div style="display:flex; justify-content:space-between; align-items:center; padding:2px 0; cursor:pointer; ' + highlight + '" onclick="viewPlayerProfile(\'' + e.uid + '\')">'
                         + '<span>' + (i + 1) + '. ' + avatarHtml + ogTag + prestigeTag + (rankBadge ? rankBadge + ' ' : '') + escapeHtml(e.name) + '</span>'
                         + '<span>👊 ' + (e.reputation || 0) + ' · Lvl ' + e.level + achv + money + '</span>'
                         + '</div>';
