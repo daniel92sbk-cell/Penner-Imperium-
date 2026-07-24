@@ -293,18 +293,23 @@
     <div id="tab-shop" class="tab-content">
         <div class="section-title"><i class="fas fa-house icon"></i>Unterkünfte (Tasche & Miete passiv)</div>
         <div class="upgrade-list" id="shop-homes-list"></div>
+        <div id="refine-home-block"></div>
 
         <div class="section-title"><i class="fas fa-paw icon"></i>Hinterhof-Zoo (Passive Flaschen)</div>
         <div class="upgrade-list" id="shop-pets-list"></div>
+        <div id="refine-pet-block"></div>
 
         <div class="section-title"><i class="fas fa-shield-halved icon"></i>Ausrüstung (Kampfkraft)</div>
         <div class="upgrade-list" id="shop-gear-list"></div>
+        <div id="refine-gear-block"></div>
 
         <div class="section-title"><i class="fas fa-user-tie icon"></i>Mitarbeiter (Passives Geld)</div>
         <div class="upgrade-list" id="shop-employees-list"></div>
+        <div id="refine-employee-block"></div>
 
         <div class="section-title"><i class="fas fa-car icon"></i>Fuhrpark (Flaschenwert steigern)</div>
         <div class="upgrade-list" id="shop-cars-list"></div>
+        <div id="refine-car-block"></div>
     </div>
 
     <!-- TAB: TRAINING -->
@@ -313,6 +318,7 @@
             <div class="dashboard-avatar" style="width:70px; height:70px; font-size:32px;">🥊</div>
             <div id="training-name" style="font-weight:bold; font-size:16px; margin-bottom:2px;">Gast</div>
             <div style="font-size:11px; color:#999; margin-bottom:14px;">Bereite dich auf zukünftige Penner-Duelle vor</div>
+            <div id="training-combat-rank" style="font-size:12px; color:#c0392b; font-weight:bold; margin-bottom:12px;">🎖️ Grüner Anfänger</div>
             <div class="dashboard-stats-grid">
                 <div class="dashboard-stat-box"><div style="font-size:9px; color:#888;">ANGRIFF</div><div id="train-attack-display" style="font-weight:bold; color:var(--accent-color); font-size:16px;">1</div></div>
                 <div class="dashboard-stat-box"><div style="font-size:9px; color:#888;">VERTEIDIGUNG</div><div id="train-defense-display" style="font-weight:bold; color:var(--accent-color); font-size:16px;">1</div></div>
@@ -321,13 +327,13 @@
 
         <div class="section-title"><i class="fas fa-hand-fist icon"></i>Angriff trainieren</div>
         <div class="job-card">
-            <div class="item-desc" style="margin-bottom:8px;">Erhöht deinen Angriffswert für zukünftige Penner-Duelle.</div>
+            <div class="item-desc" style="margin-bottom:8px;">Erhöht deinen Angriffswert – wirkt sich auf Kiez-Kämpfe UND zukünftige Penner-Duelle aus.</div>
             <button id="btn-train-attack" class="btn-sm" style="width:100%; background:#c0392b; color:#fff; padding:10px;" onclick="trainAttack()">+1 Angriff (<span id="cost-attack">3.00 €</span>)</button>
         </div>
 
         <div class="section-title"><i class="fas fa-shield icon"></i>Verteidigung trainieren</div>
         <div class="job-card">
-            <div class="item-desc" style="margin-bottom:8px;">Erhöht deinen Verteidigungswert für zukünftige Penner-Duelle.</div>
+            <div class="item-desc" style="margin-bottom:8px;">Erhöht deinen Verteidigungswert – wirkt sich auf Kiez-Kämpfe UND zukünftige Penner-Duelle aus.</div>
             <button id="btn-train-defense" class="btn-sm" style="width:100%; background:#2980b9; color:#fff; padding:10px;" onclick="trainDefense()">+1 Verteidigung (<span id="cost-defense">3.00 €</span>)</button>
         </div>
 
@@ -409,6 +415,7 @@
             <div id="dashboard-name" class="dashboard-name">Gast</div>
             <div id="dashboard-title" class="dashboard-subtitle">Frischling auf der Straße</div>
             <button id="sound-toggle-btn" class="btn-sm" style="background:#333; color:#fff; padding:6px 14px; margin-bottom:10px;" onclick="toggleSound()"><i class="fas fa-volume-up"></i> Sound</button>
+            <div id="dashboard-combat-rank" style="font-size:11px; color:#c0392b; font-weight:bold; margin-bottom:10px;">🎖️ Grüner Anfänger</div>
             <div class="dashboard-stats-grid">
                 <div class="dashboard-stat-box"><div style="font-size:9px; color:#888;">LEVEL</div><div id="dash-level" style="font-weight:bold; color:var(--accent-color);">1</div></div>
                 <div class="dashboard-stat-box"><div style="font-size:9px; color:#888;">KAMPFPUNKTE</div><div id="dash-rep" style="font-weight:bold; color:var(--accent-color);">👊 0</div></div>
@@ -671,6 +678,7 @@
         dailyChallengeDate: '', dailyMoneyEarned: 0, dailyFightsWon: 0, dailyMinigameCatches: 0, dailyChallengeClaimed: false,
         attackPoints: 1, defensePoints: 1,
         duelEnd: 0, duelsWon: 0,
+        homeUpgradeLevel: 0, petUpgradeLevel: 0, carUpgradeLevel: 0, employeeUpgradeLevel: 0, gearUpgradeLevel: 0,
         isOG: false, ogNumber: null, ogChecked: false
     };
 
@@ -813,12 +821,76 @@
         `).join('');
     }
 
+    const REFINE_CATEGORIES = [
+        { key: 'home', label: 'Unterkunft', list: HOMES, activeField: 'currentHome' },
+        { key: 'pet', label: 'Gefährte', list: PETS, activeField: 'activePet' },
+        { key: 'gear', label: 'Ausrüstung', list: EQUIPMENT, activeField: 'activeGear' },
+        { key: 'employee', label: 'Mitarbeiter', list: EMPLOYEES, activeField: 'activeEmployee' },
+        { key: 'car', label: 'Fahrzeug', list: CARS, activeField: 'activeCar' }
+    ];
+
+    function getRefineCost(baseItemCost, level) {
+        return Math.round(baseItemCost * (level + 1) * 1.8);
+    }
+
+    function getBaseCostForCategory(cat) {
+        let def = REFINE_CATEGORIES.find(c => c.key === cat);
+        if (!def) return 0;
+        let activeId = state[def.activeField];
+        let item = def.list.find(x => x.id === activeId);
+        return item ? item.cost : 0;
+    }
+
+    function recomputeBottlePrice() {
+        let car = CARS.find(c => c.id === state.activeCar);
+        let base = car ? car.value : 0.08;
+        state.bottlePrice = base * (1 + (state.carUpgradeLevel || 0) * 0.15);
+    }
+
+    function refineItem(cat) {
+        let levelField = cat + 'UpgradeLevel';
+        let currentLevel = state[levelField] || 0;
+        if (currentLevel >= 5) return;
+        let baseCost = getBaseCostForCategory(cat);
+        if (baseCost <= 0) { alert('Du besitzt noch kein Item in dieser Kategorie.'); return; }
+        let cost = getRefineCost(baseCost, currentLevel);
+        if (state.money < cost) return;
+        state.money -= cost;
+        state[levelField] = currentLevel + 1;
+        if (cat === 'car') recomputeBottlePrice();
+        playSound('coin');
+        saveGame();
+        renderRefineBlocks();
+    }
+
+    function renderRefineBlocks() {
+        REFINE_CATEGORIES.forEach(def => {
+            let el = document.getElementById('refine-' + def.key + '-block');
+            if (!el) return;
+            let level = state[def.key + 'UpgradeLevel'] || 0;
+            let baseCost = getBaseCostForCategory(def.key);
+            let maxed = level >= 5;
+            let cost = maxed ? 0 : getRefineCost(baseCost, level);
+            let disabled = maxed || baseCost <= 0 || state.money < cost;
+            el.innerHTML = '<div class="job-card" style="margin-top:6px; margin-bottom:14px;">'
+                + '<div style="display:flex; justify-content:space-between; font-size:11px; color:#aaa; margin-bottom:6px;">'
+                + '<span>Veredelung: ' + level + ' / 5</span>'
+                + (level > 0 ? '<span style="color:var(--success-color);">+' + (level * 15) + '% Effekt</span>' : '<span></span>')
+                + '</div>'
+                + '<button class="btn-sm" style="width:100%; background:#9b59b6; color:#fff; padding:8px;" ' + (disabled ? 'disabled' : '') + ' onclick="refineItem(\'' + def.key + '\')">'
+                + (maxed ? 'Maximal veredelt ✓' : (baseCost <= 0 ? 'Kein Item vorhanden' : def.label + ' veredeln (' + cost.toFixed(2) + ' €)'))
+                + '</button>'
+                + '</div>';
+        });
+    }
+
     function initShops() {
         document.getElementById('shop-homes-list').innerHTML = generateShopHTML(HOMES, 'home');
         document.getElementById('shop-pets-list').innerHTML = generateShopHTML(PETS, 'pet');
         document.getElementById('shop-gear-list').innerHTML = generateShopHTML(EQUIPMENT, 'gear');
         document.getElementById('shop-employees-list').innerHTML = generateShopHTML(EMPLOYEES, 'employee');
         document.getElementById('shop-cars-list').innerHTML = generateShopHTML(CARS, 'car');
+        renderRefineBlocks();
     }
 
     function buyShopItem(prefix, id) {
@@ -853,6 +925,10 @@
             if (snap.empty) return alert('Diesen Spieler gibt es nicht oder er hat noch nicht gespielt.');
             let opponent = snap.docs[0].data();
             let opponentId = snap.docs[0].id;
+            let opponentImageMap = await fetchProfileImages([opponentId]);
+            let opponentAvatarHtml = opponentImageMap[opponentId]
+                ? '<img src="' + opponentImageMap[opponentId] + '" style="width:24px; height:24px; border-radius:50%; object-fit:cover; vertical-align:middle; margin-right:6px;">'
+                : '';
 
             let myPower = (state.attackPoints || 1) * 1.5 + (state.defensePoints || 1) * 0.5;
             let theirPower = (opponent.defensePoints || 1) * 1.5 + (opponent.attackPoints || 1) * 0.5;
@@ -871,7 +947,7 @@
                 state.duelsWon = (state.duelsWon || 0) + 1;
                 opponentRepChange = -5;
                 document.getElementById('event-icon').innerText = '🥊';
-                document.getElementById('event-text').innerText = 'Duell-Sieg gegen ' + escapeHtml(name) + '!';
+                document.getElementById('event-text').innerHTML = opponentAvatarHtml + 'Duell-Sieg gegen ' + escapeHtml(name) + '!';
                 document.getElementById('event-reward').innerText = '+' + repGain + ' Ruf-Punkte, +' + moneyGain.toFixed(2) + ' €';
                 playSound('win');
                 launchConfetti(15);
@@ -880,7 +956,7 @@
                 state.reputation = Math.max(0, (state.reputation || 0) - repLoss);
                 opponentRepChange = 8;
                 document.getElementById('event-icon').innerText = '💥';
-                document.getElementById('event-text').innerText = 'Duell-Niederlage gegen ' + escapeHtml(name) + '...';
+                document.getElementById('event-text').innerHTML = opponentAvatarHtml + 'Duell-Niederlage gegen ' + escapeHtml(name) + '...';
                 document.getElementById('event-reward').innerText = '-' + repLoss + ' Ruf-Punkte';
                 playSound('lose');
             }
@@ -966,6 +1042,8 @@
         if (atkEl) atkEl.innerText = state.attackPoints || 1;
         let defEl = document.getElementById('train-defense-display');
         if (defEl) defEl.innerText = state.defensePoints || 1;
+        let rankEl = document.getElementById('training-combat-rank');
+        if (rankEl) rankEl.innerText = '🎖️ ' + getCombatRank((state.attackPoints || 1) + (state.defensePoints || 1));
         let atkCost = getTrainCost(state.attackPoints || 1);
         let defCost = getTrainCost(state.defensePoints || 1);
         let costAtkEl = document.getElementById('cost-attack');
@@ -1327,6 +1405,16 @@
         }
     }
 
+    async function postSystemMessage(text) {
+        if (!window.fbReady) return;
+        try {
+            let msgRef = window.fbDoc(window.fbCollection(window.fbDb, "globalChat"));
+            await window.fbSetDoc(msgRef, { userId: 'system', name: '📢 System', text: text, timestamp: Date.now(), isSystem: true });
+        } catch (e) {
+            console.log('Systemnachricht konnte nicht gesendet werden:', e);
+        }
+    }
+
     async function sendGlobalChatMessage() {
         let input = document.getElementById('global-chat-input');
         if (!input) return;
@@ -1354,9 +1442,16 @@
             );
             let snap = await window.fbGetDocs(q);
             let messages = snap.docs.map(d => d.data()).reverse();
+            let imageMap = await fetchProfileImages(messages.map(m => m.userId));
             el.innerHTML = messages.map(m => {
+                if (m.isSystem) {
+                    return '<div style="margin-bottom:4px; color:var(--accent-color); font-style:italic; text-align:center;">' + escapeHtml(m.text) + '</div>';
+                }
                 let mine = (m.name === state.playerName) ? 'color:#f39c12;' : '';
-                return '<div style="margin-bottom:4px;"><span style="font-weight:bold; ' + mine + '">' + escapeHtml(m.name) + ':</span> ' + escapeHtml(m.text) + '</div>';
+                let avatarHtml = imageMap[m.userId]
+                    ? '<img src="' + imageMap[m.userId] + '" style="width:16px; height:16px; border-radius:50%; object-fit:cover; vertical-align:middle; margin-right:4px;">'
+                    : '';
+                return '<div style="margin-bottom:4px;">' + avatarHtml + '<span style="font-weight:bold; ' + mine + '">' + escapeHtml(m.name) + ':</span> ' + escapeHtml(m.text) + '</div>';
             }).join('') || '<div style="color:#666;">Noch keine Nachrichten.</div>';
             el.scrollTop = el.scrollHeight;
         } catch (e) {
@@ -1372,7 +1467,7 @@
         if (!state.clanId) return alert('Du musst in einem Clan sein, um im Clan-Chat zu schreiben.');
         try {
             let msgRef = window.fbDoc(window.fbCollection(window.fbDb, "clanChat"));
-            await window.fbSetDoc(msgRef, { clanId: state.clanId, name: state.playerName, text: text, timestamp: Date.now() });
+            await window.fbSetDoc(msgRef, { clanId: state.clanId, userId: state.userId || null, name: state.playerName, text: text, timestamp: Date.now() });
             input.value = '';
             refreshClanChat();
         } catch (e) {
@@ -1391,9 +1486,13 @@
             );
             let snap = await window.fbGetDocs(q);
             let messages = snap.docs.map(d => d.data()).sort((a, b) => a.timestamp - b.timestamp).slice(-30);
+            let imageMap = await fetchProfileImages(messages.map(m => m.userId));
             el.innerHTML = messages.map(m => {
                 let mine = (m.name === state.playerName) ? 'color:#f39c12;' : '';
-                return '<div style="margin-bottom:4px;"><span style="font-weight:bold; ' + mine + '">' + escapeHtml(m.name) + ':</span> ' + escapeHtml(m.text) + '</div>';
+                let avatarHtml = imageMap[m.userId]
+                    ? '<img src="' + imageMap[m.userId] + '" style="width:16px; height:16px; border-radius:50%; object-fit:cover; vertical-align:middle; margin-right:4px;">'
+                    : '';
+                return '<div style="margin-bottom:4px;">' + avatarHtml + '<span style="font-weight:bold; ' + mine + '">' + escapeHtml(m.name) + ':</span> ' + escapeHtml(m.text) + '</div>';
             }).join('') || '<div style="color:#666;">Noch keine Nachrichten.</div>';
             el.scrollTop = el.scrollHeight;
         } catch (e) {
@@ -1467,6 +1566,7 @@
             state.activeWarId = warId;
             saveGame();
             refreshWarStatus();
+            postSystemMessage('⚔️ ' + escapeHtml(ownData.name) + ' hat ' + escapeHtml(oppData.name) + ' den Krieg erklärt!');
         } catch (e) {
             alert('Kriegserklärung fehlgeschlagen: ' + e.message);
         }
@@ -1633,6 +1733,21 @@
         }
     }
 
+    async function fetchProfileImages(uids) {
+        let map = {};
+        let uniqueUids = [...new Set(uids)].filter(u => u);
+        await Promise.all(uniqueUids.map(async (uid) => {
+            try {
+                let snap = await window.fbGetDoc(window.fbDoc(window.fbDb, "profileImages", uid));
+                if (snap.exists && snap.exists()) {
+                    let data = snap.data();
+                    if (data && data.imageData) map[uid] = data.imageData;
+                }
+            } catch (e) { /* Bild einfach weglassen */ }
+        }));
+        return map;
+    }
+
     async function refreshLeaderboard() {
         let el = document.getElementById('leaderboard-list');
         if (!el || !window.fbReady) return;
@@ -1644,19 +1759,24 @@
                 window.fbLimit(8)
             );
             let snap = await window.fbGetDocs(q);
-            let entries = snap.docs.map(d => d.data());
+            let entries = snap.docs.map(d => Object.assign({ uid: d.id }, d.data()));
 
             if (entries.length === 0) {
                 el.innerHTML = "Noch keine Einträge. Melde dich an, um dabei zu sein!";
             } else {
+                let imageMap = await fetchProfileImages(entries.map(e => e.uid));
                 el.innerHTML = entries.map((e, i) => {
                     let highlight = (e.name === state.playerName) ? "color:#f39c12; font-weight:bold;" : "";
                     let prestigeTag = (e.prestige > 0) ? ('P' + e.prestige + ' ') : '';
                     let ogTag = e.ogPlayer ? '🎖️ ' : '';
+                    let rankBadge = getCombatRankBadge((e.attackPoints || 1) + (e.defensePoints || 1));
                     let achv = (e.achievements != null) ? (' · 🏅' + e.achievements) : '';
                     let money = (e.money != null) ? (' · ' + e.money.toFixed(2) + ' €') : '';
-                    return '<div style="display:flex; justify-content:space-between; padding:2px 0; ' + highlight + '">'
-                        + '<span>' + (i + 1) + '. ' + ogTag + prestigeTag + escapeHtml(e.name) + '</span>'
+                    let avatarHtml = imageMap[e.uid]
+                        ? '<img src="' + imageMap[e.uid] + '" style="width:20px; height:20px; border-radius:50%; object-fit:cover; vertical-align:middle; margin-right:4px;">'
+                        : '';
+                    return '<div style="display:flex; justify-content:space-between; align-items:center; padding:2px 0; ' + highlight + '">'
+                        + '<span>' + (i + 1) + '. ' + avatarHtml + ogTag + prestigeTag + (rankBadge ? rankBadge + ' ' : '') + escapeHtml(e.name) + '</span>'
                         + '<span>👊 ' + (e.reputation || 0) + ' · Lvl ' + e.level + achv + money + '</span>'
                         + '</div>';
                 }).join('');
@@ -1716,6 +1836,32 @@
         } catch (e) {
             console.log('Profilbild konnte nicht geladen werden:', e);
         }
+    }
+
+    const COMBAT_RANKS = [
+        { min: 0, title: 'Grüner Anfänger' },
+        { min: 10, title: 'Straßenkämpfer' },
+        { min: 25, title: 'Kiez-Schläger' },
+        { min: 50, title: 'Kiez-Veteran' },
+        { min: 100, title: 'Gefürchteter Straßenkönig' },
+        { min: 200, title: 'Legende des Kiez' }
+    ];
+
+    function getCombatRank(totalPoints) {
+        let rank = COMBAT_RANKS[0];
+        for (let r of COMBAT_RANKS) {
+            if (totalPoints >= r.min) rank = r;
+        }
+        return rank.title;
+    }
+
+    function getCombatRankBadge(totalPoints) {
+        if (totalPoints >= 200) return '💎';
+        if (totalPoints >= 100) return '👑';
+        if (totalPoints >= 50) return '🎖️';
+        if (totalPoints >= 25) return '⚔️⚔️';
+        if (totalPoints >= 10) return '⚔️';
+        return '';
     }
 
     function getAvatarEmoji() {
@@ -1787,6 +1933,8 @@
         if (moneyEl) moneyEl.innerText = state.money.toFixed(2) + ' €';
         let clanEl = document.getElementById('dash-clan');
         if (clanEl) clanEl.innerText = state.clanName || 'Kein Clan';
+        let rankEl = document.getElementById('dashboard-combat-rank');
+        if (rankEl) rankEl.innerText = '🎖️ ' + getCombatRank((state.attackPoints || 1) + (state.defensePoints || 1));
         renderBadgeGrid();
     }
 
@@ -1962,6 +2110,9 @@
             saveGame();
             launchConfetti(18);
             playSound('levelup');
+            if (state.level >= 1000) {
+                postSystemMessage('🏆 ' + (state.playerName || 'Ein Spieler') + ' hat Level 1000 erreicht!');
+            }
         }
     }
 
@@ -2025,7 +2176,8 @@
         if (state.money < item.cost) return;
         state.money -= item.cost;
         state.activeCar = item.id;
-        state.bottlePrice = item.value;
+        state.carUpgradeLevel = 0;
+        recomputeBottlePrice();
         saveGame();
     }
 
@@ -2053,7 +2205,8 @@
 
     function getCombatPower() {
         let gear = EQUIPMENT.find(g => g.id === state.activeGear);
-        return 1 + (gear ? gear.power : 0);
+        let gearPower = gear ? gear.power * (1 + (state.gearUpgradeLevel || 0) * 0.15) : 0;
+        return 1 + gearPower + (state.attackPoints || 1) * 2 + (state.defensePoints || 1) * 1.5;
     }
 
     let fightAutoMissTimeout = null;
@@ -2119,7 +2272,7 @@
 
         let basePower = getCombatPower();
         let effectivePower = basePower * (0.4 + quality * 1.2);
-        let rivalPower = Math.max(1, 5 + (state.reputation || 0) * 0.3 + (Math.random() * 10 - 3));
+        let rivalPower = Math.max(1, 4 + (state.reputation || 0) * 0.25 + (Math.random() * 6 - 2));
         let rivalName = RIVALS[Math.floor(Math.random() * RIVALS.length)];
         let winChance = Math.min(0.92, Math.max(0.05, effectivePower / (effectivePower + rivalPower)));
         let won = Math.random() < winChance;
@@ -2337,7 +2490,7 @@
         if (state.activePet !== 'none' && state.bottles < state.maxBottles) {
             if (now - state.lastPetTime >= 3000) {
                 let pet = PETS.find(p => p.id === state.activePet);
-                let chance = pet ? pet.chance : 0;
+                let chance = pet ? Math.min(0.99, pet.chance * (1 + (state.petUpgradeLevel || 0) * 0.15)) : 0;
                 if (Math.random() < chance) {
                     state.bottles = Math.min(state.maxBottles, state.bottles + 1);
                 }
@@ -2349,7 +2502,7 @@
         if (state.currentHome !== 'Gehweg') {
             if (now - state.lastRentTime >= 4000) {
                 let home = HOMES.find(h => h.id === state.currentHome);
-                let rent = home ? home.rent : 0;
+                let rent = home ? home.rent * (1 + (state.homeUpgradeLevel || 0) * 0.15) : 0;
                 addMoney(rent * getMultiplier());
                 state.lastRentTime = now;
                 saveGame();
@@ -2359,7 +2512,7 @@
         if (state.activeEmployee !== 'none') {
             if (now - state.lastEmployeeTime >= 4500) {
                 let employee = EMPLOYEES.find(e => e.id === state.activeEmployee);
-                let income = employee ? employee.income : 0;
+                let income = employee ? employee.income * (1 + (state.employeeUpgradeLevel || 0) * 0.15) : 0;
                 addMoney(income * getMultiplier());
                 state.lastEmployeeTime = now;
                 saveGame();
