@@ -278,8 +278,19 @@
             </div>
         </div>
 
-        <div class="section-title"><i class="fas fa-music icon"></i>Straßenmusik (Geld & Ruf)</div>
+        <div class="section-title"><i class="fas fa-coins icon"></i>Kiez-Casino (Roulette)</div>
         <div class="job-card">
+            <div id="roulette-result-display" style="text-align:center; font-size:34px; font-weight:bold; margin-bottom:10px; height:46px; display:flex; align-items:center; justify-content:center; color:var(--accent-color);">🎰</div>
+            <input id="roulette-bet-amount" type="number" placeholder="Einsatz in €" class="login-input" min="1" step="1">
+            <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:6px; margin-bottom:8px;">
+                <button class="btn-sm" style="background:#c0392b; color:#fff; padding:10px;" onclick="spinRoulette('red')">🔴 Rot (2x)</button>
+                <button class="btn-sm" style="background:#222; color:#fff; padding:10px; border:1px solid #444;" onclick="spinRoulette('black')">⚫ Schwarz (2x)</button>
+                <button class="btn-sm" style="background:#27ae60; color:#fff; padding:10px;" onclick="spinRoulette('green')">🟢 Null (35x)</button>
+            </div>
+            <div id="roulette-status" style="text-align:center; font-size:11px; color:#888;"></div>
+        </div>
+
+        <div class="section-title"><i class="fas fa-music icon"></i>Straßenmusik (Geld & Ruf)</div>        <div class="job-card">
             <div id="street-prog" class="progress-box"><div id="street-bar" class="bar" style="background: #3498db;"></div><div id="street-text" class="prog-text"></div></div>
             <div id="street-controls" class="tour-options">
                 <button class="btn-sm" onclick="startJob('street', 1)">1m</button><button class="btn-sm" onclick="startJob('street', 3)">3m</button>
@@ -2176,6 +2187,75 @@
         }
     }
     setInterval(updateDailyChallengeUI, 1000);
+
+    const ROULETTE_RED = [1, 3, 5, 7, 9, 12, 14, 16, 18, 19, 21, 23, 25, 27, 30, 32, 34, 36];
+    let rouletteSpinning = false;
+
+    function getRouletteColor(num) {
+        if (num === 0) return 'green';
+        return ROULETTE_RED.includes(num) ? 'red' : 'black';
+    }
+
+    function spinRoulette(betColor) {
+        if (rouletteSpinning) return;
+        let input = document.getElementById('roulette-bet-amount');
+        let bet = input ? parseFloat(input.value) : 0;
+        if (!bet || bet <= 0) { alert('Bitte einen gültigen Einsatz eingeben.'); return; }
+        if (bet > state.money) { alert('Nicht genug Geld für diesen Einsatz.'); return; }
+
+        rouletteSpinning = true;
+        state.money -= bet;
+        saveGame();
+
+        let display = document.getElementById('roulette-result-display');
+        let statusEl = document.getElementById('roulette-status');
+        if (statusEl) statusEl.innerText = 'Das Rad dreht sich...';
+
+        let spins = 0;
+        let spinInterval = setInterval(() => {
+            let randNum = Math.floor(Math.random() * 37);
+            if (display) {
+                let col = getRouletteColor(randNum);
+                display.innerText = randNum;
+                display.style.color = col === 'red' ? '#e74c3c' : (col === 'black' ? '#fff' : '#2ecc71');
+            }
+            spins++;
+            if (spins >= 18) {
+                clearInterval(spinInterval);
+                resolveRoulette(betColor, bet);
+            }
+        }, 90);
+    }
+
+    function resolveRoulette(betColor, bet) {
+        let finalNum = Math.floor(Math.random() * 37);
+        let finalColor = getRouletteColor(finalNum);
+        let display = document.getElementById('roulette-result-display');
+        if (display) {
+            display.innerText = finalNum;
+            display.style.color = finalColor === 'red' ? '#e74c3c' : (finalColor === 'black' ? '#fff' : '#2ecc71');
+        }
+
+        let won = (betColor === finalColor);
+        let payout = 0;
+        if (won) {
+            payout = betColor === 'green' ? bet * 35 : bet * 2;
+            addMoney(payout);
+            playSound('win');
+            if (betColor === 'green') launchConfetti(40);
+        } else {
+            playSound('lose');
+        }
+
+        let statusEl = document.getElementById('roulette-status');
+        if (statusEl) {
+            statusEl.innerHTML = won
+                ? '<span style="color:var(--success-color);">🎉 Gewonnen! +' + payout.toFixed(2) + ' €</span>'
+                : '<span style="color:#e74c3c;">Verloren: -' + bet.toFixed(2) + ' €</span>';
+        }
+        saveGame();
+        rouletteSpinning = false;
+    }
 
     function saveGame() { state.lastSeen = Date.now(); localStorage.setItem('penner_v4_9_save', JSON.stringify(state)); }
     function resetGame() { if (confirm("Ganz von vorne anfangen?")) { localStorage.removeItem('penner_v4_9_save'); location.reload(); } }
