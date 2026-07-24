@@ -491,6 +491,8 @@
         <div class="dashboard-stats-grid">
             <div class="dashboard-stat-box"><div style="font-size:9px; color:#888;">LEVEL</div><div id="profile-view-level" style="font-weight:bold; color:var(--accent-color);"></div></div>
             <div class="dashboard-stat-box"><div style="font-size:9px; color:#888;">KAMPFPUNKTE</div><div id="profile-view-rep" style="font-weight:bold; color:var(--accent-color);"></div></div>
+            <div class="dashboard-stat-box"><div style="font-size:9px; color:#888;">ANGRIFF</div><div id="profile-view-attack" style="font-weight:bold; color:var(--accent-color);"></div></div>
+            <div class="dashboard-stat-box"><div style="font-size:9px; color:#888;">VERTEIDIGUNG</div><div id="profile-view-defense" style="font-weight:bold; color:var(--accent-color);"></div></div>
             <div class="dashboard-stat-box"><div style="font-size:9px; color:#888;">KONTOSTAND</div><div id="profile-view-money" style="font-weight:bold; color:var(--accent-color);"></div></div>
             <div class="dashboard-stat-box"><div style="font-size:9px; color:#888;">CLAN</div><div id="profile-view-clan" style="font-weight:bold; color:var(--accent-color);"></div></div>
         </div>
@@ -1816,6 +1818,8 @@
             document.getElementById('profile-view-rank').innerText = '🎖️ ' + getCombatRank((data.attackPoints || 1) + (data.defensePoints || 1));
             document.getElementById('profile-view-level').innerText = data.level || 1;
             document.getElementById('profile-view-rep').innerText = '👊 ' + (data.reputation || 0);
+            document.getElementById('profile-view-attack').innerText = data.attackPoints || 1;
+            document.getElementById('profile-view-defense').innerText = data.defensePoints || 1;
             document.getElementById('profile-view-money').innerText = (data.money || 0).toFixed(2) + ' €';
             document.getElementById('profile-view-clan').innerText = data.clanName || 'Kein Clan';
 
