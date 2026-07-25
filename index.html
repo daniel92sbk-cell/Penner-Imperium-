@@ -79,6 +79,14 @@
         .prog-text { position: absolute; width: 100%; text-align: center; font-size: 11px; top: 2px; font-weight: bold; color: #fff; z-index: 5; }
         .upgrade-list { display: flex; flex-direction: column; gap: 8px; }
         .upgrade-item { display: flex; justify-content: space-between; align-items: center; background: #222; padding: 10px; border-radius: 6px; border: 1px solid var(--border-color); }
+        .rarity-bronze { border-left: 3px solid #cd7f32; }
+        .rarity-silver { border-left: 3px solid #c0c0c0; }
+        .rarity-gold { border-left: 3px solid #ffd700; box-shadow: 0 0 6px rgba(255,215,0,0.25); }
+        .rarity-legendary { border-left: 3px solid #9b59b6; animation: legendaryGlow 2s ease-in-out infinite alternate; }
+        @keyframes legendaryGlow {
+            from { box-shadow: 0 0 6px rgba(155,89,182,0.35); }
+            to { box-shadow: 0 0 14px rgba(155,89,182,0.75); }
+        }
         .item-info { max-width: 70%; }
         .item-name { font-weight: bold; font-size: 13px; color: #fff; }
         .item-desc { font-size: 11px; color: #aaa; margin-top: 2px; }
@@ -280,7 +288,14 @@
 
         <div class="section-title"><i class="fas fa-coins icon"></i>Kiez-Casino (Roulette)</div>
         <div class="job-card">
-            <div id="roulette-result-display" style="text-align:center; font-size:34px; font-weight:bold; margin-bottom:10px; height:46px; display:flex; align-items:center; justify-content:center; color:var(--accent-color);">🎰</div>
+            <div style="position:relative; width:180px; height:180px; margin:0 auto 12px auto;">
+                <div id="roulette-wheel" style="width:100%; height:100%; transition: transform 3s cubic-bezier(0.15, 0.85, 0.25, 1);"></div>
+                <div id="roulette-ball" style="position:absolute; top:0; left:0; width:100%; height:100%; transition: transform 3s cubic-bezier(0.15, 0.85, 0.25, 1); pointer-events:none;">
+                    <div style="position:absolute; top:4px; left:50%; width:8px; height:8px; background:#fff; border-radius:50%; margin-left:-4px; box-shadow:0 0 4px rgba(255,255,255,0.9);"></div>
+                </div>
+                <div style="position:absolute; top:-6px; left:50%; margin-left:-6px; width:0; height:0; border-left:6px solid transparent; border-right:6px solid transparent; border-top:10px solid var(--accent-color); z-index:5;"></div>
+            </div>
+            <div id="roulette-result-display" style="text-align:center; font-size:16px; font-weight:bold; margin-bottom:10px; color:var(--accent-color);">🎰 Bereit zum Drehen</div>
             <input id="roulette-bet-amount" type="number" placeholder="Einsatz in €" class="login-input" min="1" step="1">
             <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:6px; margin-bottom:8px;">
                 <button class="btn-sm" style="background:#c0392b; color:#fff; padding:10px;" onclick="spinRoulette('red')">🔴 Rot (2x)</button>
@@ -442,6 +457,21 @@
             <input id="nickname-input" type="text" placeholder="Dein Spielername" class="login-input" maxlength="20">
             <button class="btn-sm" style="width:100%; background:#e67e22; color:#fff; padding:10px;" onclick="setNickname()">Speichern</button>
             <div id="nickname-msg" style="text-align:center; font-size:11px; color:var(--success-color); margin-top:6px;"></div>
+        </div>
+
+        <div class="section-title"><i class="fas fa-user-plus icon"></i>Freunde einladen</div>
+        <div class="job-card">
+            <div style="font-size:11px; color:#999; margin-bottom:6px;">Dein Einladungscode:</div>
+            <div style="display:flex; gap:6px; margin-bottom:12px;">
+                <input id="invite-code-display" type="text" readonly class="login-input" style="margin-bottom:0; flex:1; font-size:11px;">
+                <button class="btn-sm" style="background:var(--accent-color); color:#1e1e1e; padding:0 14px;" onclick="copyInviteCode()"><i class="fas fa-copy"></i></button>
+            </div>
+            <div style="font-size:11px; color:#999; margin-bottom:6px;">Code eines Freundes einlösen:</div>
+            <div style="display:flex; gap:6px;">
+                <input id="invite-code-input" type="text" placeholder="Code hier einfügen" class="login-input" style="margin-bottom:0; flex:1;">
+                <button id="btn-redeem-invite" class="btn-sm" style="background:#9b59b6; color:#fff; padding:0 14px;" onclick="redeemInviteCode()">Einlösen</button>
+            </div>
+            <div id="invite-status" style="font-size:11px; color:#888; margin-top:6px; text-align:center;"></div>
         </div>
 
         <div class="section-title"><i class="fas fa-medal icon"></i>Erfolge</div>
@@ -711,6 +741,8 @@
         attackPoints: 1, defensePoints: 1,
         duelEnd: 0, duelsWon: 0,
         homeUpgradeLevel: 0, petUpgradeLevel: 0, carUpgradeLevel: 0, employeeUpgradeLevel: 0, gearUpgradeLevel: 0,
+        storyMilestonesShown: [],
+        inviteRedeemed: false,
         shopCooldownEnd: 0,
         isOG: false, ogNumber: null, ogChecked: false
     };
@@ -842,9 +874,16 @@
     }
 
     // ---- Dynamic Shop Rendering ----
+    function getRarityClass(cost) {
+        if (cost >= 1500) return 'rarity-legendary';
+        if (cost >= 300) return 'rarity-gold';
+        if (cost >= 50) return 'rarity-silver';
+        return 'rarity-bronze';
+    }
+
     function generateShopHTML(list, prefix) {
         return list.map(item => `
-            <div class="upgrade-item">
+            <div class="upgrade-item ${getRarityClass(item.cost)}">
                 <div class="item-info">
                     <div class="item-name">${item.name}</div>
                     <div class="item-desc">${item.rent ? 'Miete: +' + item.rent.toFixed(2) + '€ | Tasche: ' + item.capacity : item.chance ? 'Flaschen-Chance: ' + (item.chance*100) + '%' : item.power ? 'Kampfkraft: +' + item.power : item.income ? 'Verdienst: +' + item.income.toFixed(2) + '€' : 'Flaschenwert: ' + item.value.toFixed(2) + '€'}</div>
@@ -1086,6 +1125,94 @@
         }
     }
 
+    function copyInviteCode() {
+        let input = document.getElementById('invite-code-display');
+        let statusEl = document.getElementById('invite-status');
+        if (!input || !input.value) return;
+        input.select();
+        input.setSelectionRange(0, 99999);
+        let showCopied = function () {
+            if (statusEl) { statusEl.innerText = 'Code kopiert!'; setTimeout(() => { statusEl.innerText = ''; }, 2000); }
+        };
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(input.value).then(showCopied).catch(() => { document.execCommand('copy'); showCopied(); });
+        } else {
+            document.execCommand('copy');
+            showCopied();
+        }
+    }
+
+    async function redeemInviteCode() {
+        let input = document.getElementById('invite-code-input');
+        let statusEl = document.getElementById('invite-status');
+        if (!input) return;
+        let code = input.value.trim();
+        if (!statusEl) return;
+        if (!state.userId) { statusEl.innerText = 'Bitte zuerst einloggen.'; return; }
+        if (!code) { statusEl.innerText = 'Bitte einen Code eingeben.'; return; }
+        if (state.inviteRedeemed) { statusEl.innerText = 'Du hast bereits einen Einladungscode eingelöst.'; return; }
+        if (code === state.userId) { statusEl.innerText = 'Du kannst deinen eigenen Code nicht einlösen.'; return; }
+        try {
+            let snap = await window.fbGetDoc(window.fbDoc(window.fbDb, "leaderboard", code));
+            if (!snap.exists || !snap.exists()) { statusEl.innerText = 'Dieser Einladungscode existiert nicht.'; return; }
+            let referrerData = snap.data();
+            let reward = 10.00 * getMultiplier();
+            addMoney(reward);
+            state.inviteRedeemed = true;
+            saveGame();
+
+            let redemptionRef = window.fbDoc(window.fbCollection(window.fbDb, "inviteRedemptions"));
+            await window.fbSetDoc(redemptionRef, {
+                referrerUserId: code,
+                referrerName: referrerData.name || 'Unbekannt',
+                redeemerName: state.playerName,
+                reward: 10.00,
+                processed: false,
+                timestamp: Date.now()
+            });
+
+            statusEl.innerText = '✓ Code eingelöst! +' + reward.toFixed(2) + ' € erhalten.';
+            input.value = '';
+            playSound('coin');
+            launchConfetti(15);
+        } catch (e) {
+            statusEl.innerText = 'Einlösen fehlgeschlagen: ' + e.message;
+        }
+    }
+
+    async function checkIncomingInviteRewards() {
+        if (!state.userId || !window.fbReady) return;
+        try {
+            let q = window.fbQuery(
+                window.fbCollection(window.fbDb, "inviteRedemptions"),
+                window.fbWhere("referrerUserId", "==", state.userId)
+            );
+            let snap = await window.fbGetDocs(q);
+            let pending = snap.docs.filter(d => !d.data().processed);
+            if (pending.length === 0) return;
+            let totalReward = 0;
+            let lines = [];
+            for (let docSnap of pending) {
+                let data = docSnap.data();
+                let reward = (data.reward || 0) * getMultiplier();
+                totalReward += reward;
+                lines.push('👥 ' + escapeHtml(data.redeemerName || 'Ein Freund') + ' hat deinen Code eingelöst: +' + reward.toFixed(2) + ' €');
+                await window.fbSetDoc(docSnap.ref, Object.assign({}, data, { processed: true }));
+            }
+            addMoney(totalReward);
+            saveGame();
+            let overlay = document.getElementById('event-overlay');
+            if (overlay && lines.length > 0) {
+                document.getElementById('event-icon').innerText = '🤝';
+                document.getElementById('event-text').innerText = 'Einladungsbonus!';
+                document.getElementById('event-reward').innerHTML = lines.join('<br>');
+                overlay.style.display = 'flex';
+            }
+        } catch (e) {
+            console.log('Einladungsbelohnungen konnten nicht geprüft werden:', e);
+        }
+    }
+
     function getTrainCost(current) { return 3 + current * 2; }
 
     function trainAttack() {
@@ -1280,6 +1407,8 @@
 
     async function loadGame() {
         initShops();
+        let wheelEl = document.getElementById('roulette-wheel');
+        if (wheelEl) wheelEl.innerHTML = buildRouletteWheelSVG();
         let saved = localStorage.getItem('penner_v4_9_save');
         if (saved) {
             try { state = Object.assign(state, JSON.parse(saved)); } catch (e) { console.log("Save konnte nicht geladen werden."); }
@@ -1319,6 +1448,8 @@
         checkIncomingDuelResults();
         refreshGlobalChat();
         loadProfileImageFromCloud();
+        checkIncomingInviteRewards();
+        setInterval(checkIncomingInviteRewards, 12000);
         setInterval(syncLeaderboard, 5000);
         setInterval(refreshLeaderboard, 8000);
         setInterval(refreshGlobalClanLeaderboard, 8000);
@@ -2053,6 +2184,10 @@
         if (moneyEl) moneyEl.innerText = state.money.toFixed(2) + ' €';
         let clanEl = document.getElementById('dash-clan');
         if (clanEl) clanEl.innerText = state.clanName || 'Kein Clan';
+        let inviteCodeEl = document.getElementById('invite-code-display');
+        if (inviteCodeEl && state.userId) inviteCodeEl.value = state.userId;
+        let redeemBtn = document.getElementById('btn-redeem-invite');
+        if (redeemBtn) redeemBtn.disabled = !!state.inviteRedeemed;
         let rankEl = document.getElementById('dashboard-combat-rank');
         if (rankEl) rankEl.innerText = '🎖️ ' + getCombatRank((state.attackPoints || 1) + (state.defensePoints || 1));
         renderBadgeGrid();
@@ -2188,12 +2323,50 @@
     }
     setInterval(updateDailyChallengeUI, 1000);
 
+    const ROULETTE_WHEEL_ORDER = [0,32,15,19,4,21,2,25,17,34,6,27,13,36,11,30,8,23,10,5,24,16,33,1,20,14,31,9,22,18,29,7,28,12,35,3,26];
     const ROULETTE_RED = [1, 3, 5, 7, 9, 12, 14, 16, 18, 19, 21, 23, 25, 27, 30, 32, 34, 36];
     let rouletteSpinning = false;
+    let rouletteTotalRotation = 0;
 
     function getRouletteColor(num) {
         if (num === 0) return 'green';
         return ROULETTE_RED.includes(num) ? 'red' : 'black';
+    }
+
+    function buildRouletteWheelSVG() {
+        let segments = ROULETTE_WHEEL_ORDER.length;
+        let anglePer = 360 / segments;
+        let radius = 90, cx = 100, cy = 100;
+        let paths = '';
+        for (let i = 0; i < segments; i++) {
+            let num = ROULETTE_WHEEL_ORDER[i];
+            let color = getRouletteColor(num);
+            let fill = color === 'red' ? '#c0392b' : (color === 'black' ? '#1a1a1a' : '#27ae60');
+            let startAngle = i * anglePer - 90 - anglePer / 2;
+            let endAngle = startAngle + anglePer;
+            let startRad = startAngle * Math.PI / 180;
+            let endRad = endAngle * Math.PI / 180;
+            let x1 = cx + radius * Math.cos(startRad);
+            let y1 = cy + radius * Math.sin(startRad);
+            let x2 = cx + radius * Math.cos(endRad);
+            let y2 = cy + radius * Math.sin(endRad);
+            paths += '<path d="M' + cx + ',' + cy + ' L' + x1.toFixed(2) + ',' + y1.toFixed(2) + ' A' + radius + ',' + radius + ' 0 0,1 ' + x2.toFixed(2) + ',' + y2.toFixed(2) + ' Z" fill="' + fill + '" stroke="#333" stroke-width="0.5"/>';
+            let midAngle = i * anglePer - 90;
+            let midRad = midAngle * Math.PI / 180;
+            let labelR = radius * 0.75;
+            let lx = cx + labelR * Math.cos(midRad);
+            let ly = cy + labelR * Math.sin(midRad);
+            paths += '<text x="' + lx.toFixed(2) + '" y="' + ly.toFixed(2) + '" fill="#fff" font-size="7" text-anchor="middle" dominant-baseline="middle" transform="rotate(' + (midAngle + 90) + ', ' + lx.toFixed(2) + ', ' + ly.toFixed(2) + ')">' + num + '</text>';
+        }
+        return '<svg viewBox="0 0 200 200" style="width:100%; height:100%;"><circle cx="100" cy="100" r="92" fill="#0d0d0d"/>' + paths + '<circle cx="100" cy="100" r="14" fill="#2c2c2c" stroke="#f39c12" stroke-width="2"/></svg>';
+    }
+
+    function getWheelRotationForNumber(num) {
+        let index = ROULETTE_WHEEL_ORDER.indexOf(num);
+        let anglePer = 360 / ROULETTE_WHEEL_ORDER.length;
+        let thetaFinal = (360 - (index * anglePer)) % 360;
+        let extraSpins = 5 + Math.floor(Math.random() * 3);
+        return rouletteTotalRotation + extraSpins * 360 + thetaFinal - (rouletteTotalRotation % 360);
     }
 
     function spinRoulette(betColor) {
@@ -2207,34 +2380,30 @@
         state.money -= bet;
         saveGame();
 
-        let display = document.getElementById('roulette-result-display');
         let statusEl = document.getElementById('roulette-status');
         if (statusEl) statusEl.innerText = 'Das Rad dreht sich...';
+        let display = document.getElementById('roulette-result-display');
+        if (display) display.innerText = '🎰 ...';
 
-        let spins = 0;
-        let spinInterval = setInterval(() => {
-            let randNum = Math.floor(Math.random() * 37);
-            if (display) {
-                let col = getRouletteColor(randNum);
-                display.innerText = randNum;
-                display.style.color = col === 'red' ? '#e74c3c' : (col === 'black' ? '#fff' : '#2ecc71');
-            }
-            spins++;
-            if (spins >= 18) {
-                clearInterval(spinInterval);
-                resolveRoulette(betColor, bet);
-            }
-        }, 90);
+        let finalNum = Math.floor(Math.random() * 37);
+        let rotation = getWheelRotationForNumber(finalNum);
+        rouletteTotalRotation = rotation;
+
+        let wheelEl = document.getElementById('roulette-wheel');
+        let ballEl = document.getElementById('roulette-ball');
+        if (wheelEl) wheelEl.style.transform = 'rotate(' + rotation + 'deg)';
+        if (ballEl) ballEl.style.transform = 'rotate(' + (-rotation * 0.7) + 'deg)';
+
+        setTimeout(() => {
+            resolveRoulette(betColor, bet, finalNum);
+        }, 3000);
     }
 
-    function resolveRoulette(betColor, bet) {
-        let finalNum = Math.floor(Math.random() * 37);
+    function resolveRoulette(betColor, bet, finalNum) {
         let finalColor = getRouletteColor(finalNum);
+        let colorLabel = finalColor === 'red' ? 'Rot' : (finalColor === 'black' ? 'Schwarz' : 'Grün');
         let display = document.getElementById('roulette-result-display');
-        if (display) {
-            display.innerText = finalNum;
-            display.style.color = finalColor === 'red' ? '#e74c3c' : (finalColor === 'black' ? '#fff' : '#2ecc71');
-        }
+        if (display) display.innerText = finalNum + ' – ' + colorLabel;
 
         let won = (betColor === finalColor);
         let payout = 0;
@@ -2255,6 +2424,38 @@
         }
         saveGame();
         rouletteSpinning = false;
+    }
+
+    const STORY_MILESTONES = [
+        { level: 10, title: 'Der erste Cent', text: 'Du erinnerst dich noch an den Moment, als der erste Cent in deiner Tasche klimperte. Vielleicht ist da doch mehr drin, als nur zu überleben...' },
+        { level: 50, title: 'Ein Name macht die Runde', text: 'Die Leute im Kiez kennen dich jetzt. Nicht als "der Penner von der Ecke", sondern mit echtem Namen. Respekt muss man sich verdienen – und du hast angefangen.' },
+        { level: 100, title: 'Vom Überleben zum Plan', text: 'Du wachst nicht mehr auf und fragst dich, was der Tag bringt. Du hast einen Plan. Eine Route. Ein System. Aus Zufall wird Strategie.' },
+        { level: 200, title: 'Erste Angestellte', text: 'Früher warst du allein. Jetzt arbeiten Leute für dich. Ob sie dir wirklich vertrauen, ist eine andere Frage – aber sie zahlen ihre Miete an dich, nicht umgekehrt.' },
+        { level: 350, title: 'Der Kiez redet über dich', text: 'Andere Straßenkönige fragen nach dir. Manche mit Respekt, manche mit Neid. Beides ist ein gutes Zeichen.' },
+        { level: 500, title: 'Ein Imperium entsteht', text: 'Was als ein Karton am Bahnhofsvorplatz begann, ist jetzt ein Netzwerk aus Wohnungen, Fahrzeugen und Leuten, die auf dein Wort hören. Das hier ist kein Zufall mehr.' },
+        { level: 750, title: 'Legenden erzählen von dir', text: 'Neue Gesichter im Kiez haben von dir gehört, bevor sie dich je gesehen haben. Dein Name ist zur Warnung und zum Vorbild geworden – je nachdem, wen man fragt.' },
+        { level: 1000, title: 'Vom Penner zum Imperium', text: 'Du hast es geschafft. Vom leeren Bauch und kaltem Beton zu einem Imperium, das der ganze Kiez kennt. Die Geschichte endet hier nicht – sie fängt gerade erst richtig an.' }
+    ];
+
+    function checkStoryMilestones() {
+        if (!state.storyMilestonesShown) state.storyMilestonesShown = [];
+        for (let m of STORY_MILESTONES) {
+            if (state.level >= m.level && !state.storyMilestonesShown.includes(m.level)) {
+                state.storyMilestonesShown.push(m.level);
+                showStoryPopup(m);
+                saveGame();
+                break;
+            }
+        }
+    }
+
+    function showStoryPopup(milestone) {
+        let overlay = document.getElementById('event-overlay');
+        if (!overlay) return;
+        document.getElementById('event-icon').innerText = '📖';
+        document.getElementById('event-text').innerText = milestone.title;
+        document.getElementById('event-reward').innerHTML = '<span style="font-weight:normal; font-style:italic; font-size:13px; color:#ddd; display:block; margin-top:6px; line-height:1.4;">' + milestone.text + '</span>';
+        overlay.style.display = 'flex';
     }
 
     function saveGame() { state.lastSeen = Date.now(); localStorage.setItem('penner_v4_9_save', JSON.stringify(state)); }
@@ -2299,6 +2500,7 @@
             saveGame();
             launchConfetti(18);
             playSound('levelup');
+            checkStoryMilestones();
             if (state.level >= 1000) {
                 postSystemMessage('🏆 ' + (state.playerName || 'Ein Spieler') + ' hat Level 1000 erreicht!');
             }
