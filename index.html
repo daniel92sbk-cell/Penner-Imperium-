@@ -217,6 +217,13 @@
             to { box-shadow: 0 0 20px rgba(243,156,18,0.9), 0 0 35px rgba(155,89,182,0.6); }
         }
         .dashboard-name { text-align: center; font-size: 19px; font-weight: bold; color: #fff; margin-bottom: 2px; }
+        .avatar-deco-ring-spin {
+            animation: avatarDecoSpin 8s linear infinite;
+        }
+        @keyframes avatarDecoSpin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
         .dashboard-subtitle { text-align: center; font-size: 11px; color: #999; margin-bottom: 14px; text-transform: uppercase; letter-spacing: 1px; }
         .dashboard-stats-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-bottom: 16px; }
         .dashboard-stat-box { background: #222; border-radius: 8px; padding: 8px; text-align: center; }
@@ -467,7 +474,10 @@
     <!-- TAB: KONTO / ACC -->
     <div id="tab-konto" class="tab-content">
         <div class="job-card" style="text-align:center;">
-            <div id="dashboard-avatar" class="dashboard-avatar">🧍</div>
+            <div id="dashboard-avatar-wrapper" style="position:relative; width:90px; height:90px; margin:0 auto 10px auto;">
+                <div id="dashboard-avatar" class="dashboard-avatar" style="margin:0;">🧍</div>
+                <div id="dashboard-avatar-deco" style="position:absolute; top:0; left:0; width:100%; height:100%; pointer-events:none;"></div>
+            </div>
             <input type="file" id="avatar-file-input" accept="image/*" style="display:none;" onchange="handleAvatarUpload(event)">
             <button class="btn-sm" style="background:#333; color:#fff; padding:6px 14px; margin-bottom:8px;" onclick="document.getElementById('avatar-file-input').click()"><i class="fas fa-camera"></i> Eigenes Bild hochladen</button>
             <div id="dashboard-name" class="dashboard-name">Gast</div>
@@ -558,7 +568,10 @@
 <!-- Spieler-Profil Popup -->
 <div id="player-profile-overlay" class="event-overlay">
     <div class="event-box" style="max-width:340px; text-align:center;">
-        <div id="profile-view-avatar" class="dashboard-avatar" style="margin:0 auto 10px auto;">🧍</div>
+        <div id="profile-view-avatar-wrapper" style="position:relative; width:90px; height:90px; margin:0 auto 10px auto;">
+            <div id="profile-view-avatar" class="dashboard-avatar" style="margin:0;">🧍</div>
+            <div id="profile-view-avatar-deco" style="position:absolute; top:0; left:0; width:100%; height:100%; pointer-events:none;"></div>
+        </div>
         <div id="profile-view-name" style="font-size:18px; font-weight:bold; color:#fff; margin-bottom:2px;"></div>
         <div id="profile-view-rank" style="font-size:11px; color:#c0392b; font-weight:bold; margin-bottom:10px;"></div>
         <div class="dashboard-stats-grid">
@@ -1963,6 +1976,7 @@
                 }
                 avatarEl.className = 'dashboard-avatar ' + getAvatarBorderClass((data.attackPoints || 1) + (data.defensePoints || 1));
             }
+            renderAvatarFrame('profile-view-avatar-deco', (data.attackPoints || 1) + (data.defensePoints || 1));
             document.getElementById('profile-view-name').innerText = data.name || 'Unbekannt';
             document.getElementById('profile-view-rank').innerText = '🎖️ ' + getCombatRank((data.attackPoints || 1) + (data.defensePoints || 1));
             document.getElementById('profile-view-level').innerText = data.level || 1;
@@ -2131,6 +2145,38 @@
         return '';
     }
 
+    function getFrameDecorations(totalPoints) {
+        if (totalPoints >= 200) return { items: ['🍾', '🪙', '🍺', '💰', '🍾', '🪙', '🍺', '💰'], radius: 52, size: 16, spin: true };
+        if (totalPoints >= 100) return { items: ['🍾', '🪙', '🍾', '🪙', '🍾', '🪙'], radius: 51, size: 15, spin: false };
+        if (totalPoints >= 50) return { items: ['🍾', '🪙', '🍾', '🪙'], radius: 50, size: 14, spin: false };
+        if (totalPoints >= 25) return { items: ['🍾', '🪙', '🍾'], radius: 49, size: 13, spin: false };
+        if (totalPoints >= 10) return { items: ['🍾', '🪙'], radius: 48, size: 12, spin: false };
+        return { items: [], radius: 0, size: 0, spin: false };
+    }
+
+    function renderAvatarFrame(decoContainerId, totalPoints) {
+        let container = document.getElementById(decoContainerId);
+        if (!container) return;
+        let config = getFrameDecorations(totalPoints);
+        container.innerHTML = '';
+        container.className = config.spin ? 'avatar-deco-ring-spin' : '';
+        let count = config.items.length;
+        for (let i = 0; i < count; i++) {
+            let angle = (360 / count) * i - 90;
+            let rad = angle * Math.PI / 180;
+            let x = 45 + config.radius * Math.cos(rad);
+            let y = 45 + config.radius * Math.sin(rad);
+            let deco = document.createElement('span');
+            deco.style.position = 'absolute';
+            deco.style.left = (x - config.size / 2) + 'px';
+            deco.style.top = (y - config.size / 2) + 'px';
+            deco.style.fontSize = config.size + 'px';
+            deco.style.filter = 'drop-shadow(0 1px 2px rgba(0,0,0,0.6))';
+            deco.innerText = config.items[i];
+            container.appendChild(deco);
+        }
+    }
+
     function getAvatarEmoji() {
         if (state.prestigeCount >= 3) return '💎';
         if (state.prestigeCount >= 1) return '🌟';
@@ -2189,6 +2235,7 @@
             }
             avatarEl.className = 'dashboard-avatar ' + getAvatarBorderClass((state.attackPoints || 1) + (state.defensePoints || 1));
         }
+        renderAvatarFrame('dashboard-avatar-deco', (state.attackPoints || 1) + (state.defensePoints || 1));
         let nameEl = document.getElementById('dashboard-name');
         if (nameEl) nameEl.innerText = state.playerName || 'Gast';
         let titleEl = document.getElementById('dashboard-title');
