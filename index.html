@@ -460,21 +460,6 @@
             <div id="nickname-msg" style="text-align:center; font-size:11px; color:var(--success-color); margin-top:6px;"></div>
         </div>
 
-        <div class="section-title"><i class="fas fa-user-plus icon"></i>Freunde einladen</div>
-        <div class="job-card">
-            <div style="font-size:11px; color:#999; margin-bottom:6px;">Dein Einladungscode:</div>
-            <div style="display:flex; gap:6px; margin-bottom:12px;">
-                <input id="invite-code-display" type="text" readonly class="login-input" style="margin-bottom:0; flex:1; font-size:11px;">
-                <button class="btn-sm" style="background:var(--accent-color); color:#1e1e1e; padding:0 14px;" onclick="copyInviteCode()"><i class="fas fa-copy"></i></button>
-            </div>
-            <div style="font-size:11px; color:#999; margin-bottom:6px;">Code eines Freundes einlösen:</div>
-            <div style="display:flex; gap:6px;">
-                <input id="invite-code-input" type="text" placeholder="Code hier einfügen" class="login-input" style="margin-bottom:0; flex:1;">
-                <button id="btn-redeem-invite" class="btn-sm" style="background:#9b59b6; color:#fff; padding:0 14px;" onclick="redeemInviteCode()">Einlösen</button>
-            </div>
-            <div id="invite-status" style="font-size:11px; color:#888; margin-top:6px; text-align:center;"></div>
-        </div>
-
         <div class="section-title"><i class="fas fa-medal icon"></i>Erfolge</div>
         <div class="job-card" style="text-align: center;">
             <div id="achievements-count" style="font-size:14px; font-weight:bold; color:var(--accent-color);">0 / 0 Erfolge</div>
@@ -744,7 +729,6 @@
         dailyDuelGoalDate: '', dailyDuelGoalDone: false,
         homeUpgradeLevel: 0, petUpgradeLevel: 0, carUpgradeLevel: 0, employeeUpgradeLevel: 0, gearUpgradeLevel: 0,
         storyMilestonesShown: [],
-        inviteRedeemed: false,
         shopCooldownEnd: 0,
         isOG: false, ogNumber: null, ogChecked: false
     };
@@ -1169,94 +1153,6 @@
         }
     }
 
-    function copyInviteCode() {
-        let input = document.getElementById('invite-code-display');
-        let statusEl = document.getElementById('invite-status');
-        if (!input || !input.value) return;
-        input.select();
-        input.setSelectionRange(0, 99999);
-        let showCopied = function () {
-            if (statusEl) { statusEl.innerText = 'Code kopiert!'; setTimeout(() => { statusEl.innerText = ''; }, 2000); }
-        };
-        if (navigator.clipboard && navigator.clipboard.writeText) {
-            navigator.clipboard.writeText(input.value).then(showCopied).catch(() => { document.execCommand('copy'); showCopied(); });
-        } else {
-            document.execCommand('copy');
-            showCopied();
-        }
-    }
-
-    async function redeemInviteCode() {
-        let input = document.getElementById('invite-code-input');
-        let statusEl = document.getElementById('invite-status');
-        if (!input) return;
-        let code = input.value.trim();
-        if (!statusEl) return;
-        if (!state.userId) { statusEl.innerText = 'Bitte zuerst einloggen.'; return; }
-        if (!code) { statusEl.innerText = 'Bitte einen Code eingeben.'; return; }
-        if (state.inviteRedeemed) { statusEl.innerText = 'Du hast bereits einen Einladungscode eingelöst.'; return; }
-        if (code === state.userId) { statusEl.innerText = 'Du kannst deinen eigenen Code nicht einlösen.'; return; }
-        try {
-            let snap = await window.fbGetDoc(window.fbDoc(window.fbDb, "leaderboard", code));
-            if (!snap.exists || !snap.exists()) { statusEl.innerText = 'Dieser Einladungscode existiert nicht.'; return; }
-            let referrerData = snap.data();
-            let reward = 10.00 * getMultiplier();
-            addMoney(reward);
-            state.inviteRedeemed = true;
-            saveGame();
-
-            let redemptionRef = window.fbDoc(window.fbCollection(window.fbDb, "inviteRedemptions"));
-            await window.fbSetDoc(redemptionRef, {
-                referrerUserId: code,
-                referrerName: referrerData.name || 'Unbekannt',
-                redeemerName: state.playerName,
-                reward: 10.00,
-                processed: false,
-                timestamp: Date.now()
-            });
-
-            statusEl.innerText = '✓ Code eingelöst! +' + reward.toFixed(2) + ' € erhalten.';
-            input.value = '';
-            playSound('coin');
-            launchConfetti(15);
-        } catch (e) {
-            statusEl.innerText = 'Einlösen fehlgeschlagen: ' + e.message;
-        }
-    }
-
-    async function checkIncomingInviteRewards() {
-        if (!state.userId || !window.fbReady) return;
-        try {
-            let q = window.fbQuery(
-                window.fbCollection(window.fbDb, "inviteRedemptions"),
-                window.fbWhere("referrerUserId", "==", state.userId)
-            );
-            let snap = await window.fbGetDocs(q);
-            let pending = snap.docs.filter(d => !d.data().processed);
-            if (pending.length === 0) return;
-            let totalReward = 0;
-            let lines = [];
-            for (let docSnap of pending) {
-                let data = docSnap.data();
-                let reward = (data.reward || 0) * getMultiplier();
-                totalReward += reward;
-                lines.push('👥 ' + escapeHtml(data.redeemerName || 'Ein Freund') + ' hat deinen Code eingelöst: +' + reward.toFixed(2) + ' €');
-                await window.fbSetDoc(docSnap.ref, Object.assign({}, data, { processed: true }));
-            }
-            addMoney(totalReward);
-            saveGame();
-            let overlay = document.getElementById('event-overlay');
-            if (overlay && lines.length > 0) {
-                document.getElementById('event-icon').innerText = '🤝';
-                document.getElementById('event-text').innerText = 'Einladungsbonus!';
-                document.getElementById('event-reward').innerHTML = lines.join('<br>');
-                overlay.style.display = 'flex';
-            }
-        } catch (e) {
-            console.log('Einladungsbelohnungen konnten nicht geprüft werden:', e);
-        }
-    }
-
     function getTrainCost(current) { return 3 + current * 2; }
 
     function trainAttack() {
@@ -1499,8 +1395,6 @@
         checkIncomingDuelResults();
         refreshGlobalChat();
         loadProfileImageFromCloud();
-        checkIncomingInviteRewards();
-        setInterval(checkIncomingInviteRewards, 12000);
         setInterval(syncLeaderboard, 5000);
         setInterval(refreshLeaderboard, 8000);
         setInterval(refreshGlobalClanLeaderboard, 8000);
@@ -2235,10 +2129,6 @@
         if (moneyEl) moneyEl.innerText = state.money.toFixed(2) + ' €';
         let clanEl = document.getElementById('dash-clan');
         if (clanEl) clanEl.innerText = state.clanName || 'Kein Clan';
-        let inviteCodeEl = document.getElementById('invite-code-display');
-        if (inviteCodeEl && state.userId) inviteCodeEl.value = state.userId;
-        let redeemBtn = document.getElementById('btn-redeem-invite');
-        if (redeemBtn) redeemBtn.disabled = !!state.inviteRedeemed;
         let rankEl = document.getElementById('dashboard-combat-rank');
         if (rankEl) rankEl.innerText = '🎖️ ' + getCombatRank((state.attackPoints || 1) + (state.defensePoints || 1));
         renderBadgeGrid();
