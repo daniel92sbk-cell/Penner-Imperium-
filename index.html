@@ -367,6 +367,7 @@
         <div class="job-card">
             <div class="item-desc" style="margin-bottom:8px;">Fordere einen anderen Spieler namentlich heraus. Angriff gegen Verteidigung entscheidet, wer gewinnt!</div>
             <button id="btn-challenge-player" class="btn-sm" style="width:100%; background:#8e44ad; color:#fff; padding:10px;" onclick="challengePlayer()">⚔️ Spieler herausfordern</button>
+            <div id="daily-duel-goal-status" style="font-size:10px; color:#888; text-align:center; margin-top:8px;"></div>
         </div>
     </div>
 
@@ -740,6 +741,7 @@
         dailyChallengeDate: '', dailyMoneyEarned: 0, dailyFightsWon: 0, dailyMinigameCatches: 0, dailyChallengeClaimed: false,
         attackPoints: 1, defensePoints: 1,
         duelEnd: 0, duelsWon: 0,
+        dailyDuelGoalDate: '', dailyDuelGoalDone: false,
         homeUpgradeLevel: 0, petUpgradeLevel: 0, carUpgradeLevel: 0, employeeUpgradeLevel: 0, gearUpgradeLevel: 0,
         storyMilestonesShown: [],
         inviteRedeemed: false,
@@ -1019,6 +1021,33 @@
         }
     }
 
+    function ensureDailyDuelGoal() {
+        let today = todayStr();
+        if (state.dailyDuelGoalDate !== today) {
+            state.dailyDuelGoalDate = today;
+            state.dailyDuelGoalDone = false;
+        }
+    }
+
+    async function getBountyTier(opponentId) {
+        try {
+            let q = window.fbQuery(
+                window.fbCollection(window.fbDb, "leaderboard"),
+                window.fbOrderBy("reputation", "desc"),
+                window.fbLimit(3)
+            );
+            let snap = await window.fbGetDocs(q);
+            let topIds = snap.docs.map(d => d.id);
+            let idx = topIds.indexOf(opponentId);
+            if (idx === 0) return { bonus: 50, label: '🥇 Kopfgeld (Platz 1)' };
+            if (idx === 1) return { bonus: 30, label: '🥈 Kopfgeld (Platz 2)' };
+            if (idx === 2) return { bonus: 15, label: '🥉 Kopfgeld (Platz 3)' };
+            return null;
+        } catch (e) {
+            return null;
+        }
+    }
+
     async function challengePlayer() {
         if (state.duelEnd > Date.now()) return;
         let name = prompt('Namen des Spielers eingeben, den du herausfordern willst:');
@@ -1039,6 +1068,7 @@
             let opponentAvatarHtml = opponentImageMap[opponentId]
                 ? '<img src="' + opponentImageMap[opponentId] + '" style="width:24px; height:24px; border-radius:50%; object-fit:cover; vertical-align:middle; margin-right:6px;">'
                 : '';
+            let bountyInfo = await getBountyTier(opponentId);
 
             let myPower = (state.attackPoints || 1) * 1.5 + (state.defensePoints || 1) * 0.5;
             let theirPower = (opponent.defensePoints || 1) * 1.5 + (opponent.attackPoints || 1) * 0.5;
@@ -1052,15 +1082,29 @@
             if (won) {
                 let moneyGain = 5.00 * getMultiplier();
                 let repGain = 8;
+                let bountyText = '';
+                if (bountyInfo) {
+                    let bountyAmount = bountyInfo.bonus * getMultiplier();
+                    moneyGain += bountyAmount;
+                    bountyText = '<br><span style="color:#f1c40f; font-weight:bold;">' + bountyInfo.label + ': +' + bountyAmount.toFixed(2) + ' € Bonus!</span>';
+                }
+                ensureDailyDuelGoal();
+                let dailyGoalText = '';
+                if (!state.dailyDuelGoalDone && (opponent.reputation || 0) > (state.reputation || 0)) {
+                    state.dailyDuelGoalDone = true;
+                    let goalBonus = 20 * getMultiplier();
+                    moneyGain += goalBonus;
+                    dailyGoalText = '<br><span style="color:var(--success-color); font-weight:bold;">🎯 Tagesziel erfüllt: +' + goalBonus.toFixed(2) + ' €</span>';
+                }
                 addMoney(moneyGain);
                 state.reputation = (state.reputation || 0) + repGain;
                 state.duelsWon = (state.duelsWon || 0) + 1;
                 opponentRepChange = -5;
                 document.getElementById('event-icon').innerText = '🥊';
                 document.getElementById('event-text').innerHTML = opponentAvatarHtml + 'Duell-Sieg gegen ' + escapeHtml(name) + '!';
-                document.getElementById('event-reward').innerText = '+' + repGain + ' Ruf-Punkte, +' + moneyGain.toFixed(2) + ' €';
+                document.getElementById('event-reward').innerHTML = '+' + repGain + ' Ruf-Punkte, +' + moneyGain.toFixed(2) + ' €' + bountyText + dailyGoalText;
                 playSound('win');
-                launchConfetti(15);
+                launchConfetti(bountyInfo ? 35 : 15);
             } else {
                 let repLoss = 5;
                 state.reputation = Math.max(0, (state.reputation || 0) - repLoss);
@@ -1263,6 +1307,13 @@
                 btnDuel.disabled = false;
                 btnDuel.innerHTML = '⚔️ Spieler herausfordern';
             }
+        }
+        ensureDailyDuelGoal();
+        let goalStatusEl = document.getElementById('daily-duel-goal-status');
+        if (goalStatusEl) {
+            goalStatusEl.innerText = state.dailyDuelGoalDone
+                ? '✅ Tagesziel erledigt: Jemanden über dir besiegt!'
+                : '🎯 Tagesziel: Besiege jemanden über dir in der Bestenliste (+20 €)';
         }
     }
     setInterval(updateTrainingUI, 1000);
