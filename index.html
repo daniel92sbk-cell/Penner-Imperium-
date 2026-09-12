@@ -4,7 +4,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Penner-Imperium v5.1 (Firebase & Tabs & Effekte)</title>
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#0a0a12">
+    <link rel="apple-touch-icon" href="icon-192.png">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Permanent+Marker&family=Rajdhani:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
         .icon { margin-right: 6px; color: var(--accent-color); }
         .city-light {
@@ -20,63 +25,93 @@
             0%, 100% { opacity: 0.1; }
             50% { opacity: 0.9; }
         }
-        :root { --bg-color: #121212; --card-color: #1e1e1e; --accent-color: #f39c12; --success-color: #2ecc71; --gamble-color: #9b59b6; --border-color: #2c2c2c; }
-        body { font-family: Arial, sans-serif; background-color: var(--bg-color); color: #fff; margin: 0; padding: 10px; background-image: linear-gradient(180deg, rgba(18,18,18,0.55) 0%, rgba(18,18,18,0.65) 55%, rgba(18,18,18,0.92) 100%), url("Gemini_Generated_Image_m3jjprm3jjprm3jj.png"); background-repeat: no-repeat; background-position: bottom center; background-size: cover; }
-        .game-container { max-width: 450px; margin: auto; background: rgba(30,30,30,0.9); border-radius: 12px; padding: 15px; box-shadow: 0 8px 24px rgba(0,0,0,0.5); backdrop-filter: blur(2px); }
-        h1 { text-align: center; color: var(--accent-color); font-size: 22px; margin: 0 0 10px 0; }
+        :root { --bg-color: #0a0a12; --card-color: #171225; --accent-color: #ff2fb0; --success-color: #39ff6a; --gamble-color: #9b59b6; --border-color: #3a2b52; --paper-color: #0f0c1a; --ink-color: #0a0a12; --neon-cyan: #2de3ff; }
+        body { font-family: 'Inter', Arial, sans-serif; background-color: var(--bg-color); color: #fff; margin: 0; padding: 10px; background-image: linear-gradient(180deg, rgba(10,9,18,0.6) 0%, rgba(10,9,18,0.72) 55%, rgba(10,9,18,0.95) 100%), url("Gemini_Generated_Image_m3jjprm3jjprm3jj.png"); background-repeat: no-repeat; background-position: bottom center; background-size: cover; }
+        .game-container { max-width: 450px; margin: auto; background: rgba(20,17,32,0.92); border-radius: 10px; padding: 15px; box-shadow: 0 0 30px rgba(255,47,176,0.12), 0 8px 24px rgba(0,0,0,0.6); backdrop-filter: blur(2px); border: 1px solid rgba(45,227,255,0.15); }
+        h1 { text-align: center; color: var(--accent-color); font-size: 22px; margin: 0 0 10px 0; font-family: 'Rajdhani', sans-serif; font-weight: 600; letter-spacing: 0.5px; text-transform: uppercase; }
 
         .hero-banner {
-            background-image: linear-gradient(180deg, rgba(18,18,18,0.2) 0%, rgba(18,18,18,0.8) 100%), url("Gemini_Generated_Image_m3jjprm3jjprm3jj.png");
+            background-image: linear-gradient(180deg, rgba(10,9,18,0.25) 0%, rgba(10,9,18,0.9) 100%), url("Gemini_Generated_Image_m3jjprm3jjprm3jj.png");
             background-size: cover;
             background-position: center 25%;
-            border-radius: 12px 12px 0 0;
+            border-radius: 10px 10px 0 0;
             margin: -15px -15px 15px -15px;
             padding: 30px 15px 18px 15px;
             text-align: center;
         }
         .hero-banner h1 {
             margin: 0;
-            font-size: 27px;
-            text-shadow: 0 2px 10px rgba(0,0,0,0.85);
-            letter-spacing: 0.5px;
+            font-size: 32px;
+            font-family: 'Permanent Marker', cursive;
+            font-weight: 400;
+            text-transform: none;
+            color: var(--accent-color);
+            text-shadow: 0 0 8px rgba(255,47,176,0.85), 0 0 22px rgba(255,47,176,0.5), 0 2px 10px rgba(0,0,0,0.9);
+            letter-spacing: 1px;
+            transform: rotate(-2deg);
+            display: inline-block;
         }
         .hero-subtitle {
             font-size: 11px;
-            color: #eee;
+            color: var(--neon-cyan);
+            font-family: 'Rajdhani', sans-serif;
+            font-weight: 600;
             text-transform: uppercase;
-            letter-spacing: 2.5px;
-            margin-top: 6px;
-            text-shadow: 0 2px 5px rgba(0,0,0,0.8);
+            letter-spacing: 3px;
+            margin-top: 8px;
+            text-shadow: 0 0 6px rgba(45,227,255,0.7);
         }
 
         /* Tab Navigation Styles */
-        .tab-navigation { display: flex; background: #262626; border-radius: 8px; padding: 4px; margin-bottom: 15px; border: 1px solid var(--border-color); gap: 4px; }
-        .tab-btn { flex: 1; padding: 10px 4px; background: transparent; color: #aaa; font-size: 11px; border-radius: 6px; text-align: center; cursor: pointer; font-weight: bold; transition: all 0.2s; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+        .tab-navigation { display: flex; background: #1d1830; border-radius: 8px; padding: 4px; margin-bottom: 15px; border: 1px solid var(--border-color); gap: 4px; }
+        .tab-btn { flex: 1; padding: 10px 4px; background: transparent; color: #aaa; font-size: 11px; font-family: 'Rajdhani', sans-serif; letter-spacing: 0.3px; border-radius: 6px; text-align: center; cursor: pointer; font-weight: 600; transition: all 0.2s; display: flex; flex-direction: column; align-items: center; gap: 4px; }
         .tab-btn i { font-size: 14px; }
-        .tab-btn.active { background: var(--accent-color); color: #121212; }
+        .tab-btn.active { background: var(--accent-color); color: #0a0a12; box-shadow: 0 0 10px rgba(255,47,176,0.7); }
         .tab-content { display: none; }
         .tab-content.active { display: block; }
 
-        .section-title { font-size: 12px; text-transform: uppercase; margin: 20px 0 10px 0; color: #888; border-left: 3px solid var(--accent-color); padding-left: 6px; font-weight: bold; }
-        .job-card { background: #262626; padding: 10px; border-radius: 8px; margin-bottom: 10px; border: 1px solid var(--border-color); }
+        .section-title {
+            display: inline-block;
+            font-family: 'Rajdhani', sans-serif;
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin: 22px 0 10px 0;
+            color: var(--neon-cyan);
+            background: transparent;
+            padding: 2px 2px 4px 2px;
+            border-bottom: 2px solid var(--neon-cyan);
+            font-weight: 700;
+            text-shadow: 0 0 6px rgba(45,227,255,0.85), 0 0 16px rgba(45,227,255,0.4);
+        }
+        .section-title .icon { color: var(--accent-color); opacity: 1; text-shadow: 0 0 6px rgba(255,47,176,0.8); }
+        .job-card {
+            background:
+                radial-gradient(circle at 100% 0%, rgba(255,47,176,0.05), transparent 55%),
+                #171225;
+            padding: 10px;
+            border-radius: 6px;
+            margin-bottom: 10px;
+            border: 1px solid var(--border-color);
+        }
         .tour-options { display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; margin-top: 5px; }
-        button { border: none; border-radius: 6px; cursor: pointer; font-weight: bold; padding: 10px; transition: background 0.2s, transform 0.05s; }
-        button:active { transform: scale(0.97); }
-        .btn-sm { font-size: 10px; background: #444; color: white; }
-        .clicker-btn { background-color: #2ecc71; color: white; font-size: 16px; width: 100%; margin-bottom: 10px; padding: 15px; position: relative; overflow: visible; }
+        button { border: none; border-radius: 5px; cursor: pointer; font-family: 'Rajdhani', sans-serif; font-weight: 700; letter-spacing: 0.3px; padding: 10px; transition: background 0.2s, transform 0.05s, box-shadow 0.2s; box-shadow: inset 0 1px 0 rgba(255,255,255,0.06), 0 2px 0 rgba(0,0,0,0.5); }
+        button:active { transform: scale(0.97) translateY(1px); box-shadow: inset 0 1px 0 rgba(255,255,255,0.06); }
+        .btn-sm { font-size: 11px; background: #2a2140; color: white; }
+        .clicker-btn { background-color: #39ff6a; color: white; font-size: 16px; width: 100%; margin-bottom: 10px; padding: 15px; position: relative; overflow: visible; }
         .sell-btn { background-color: #3498db; color: white; width: 100%; font-size: 14px; margin-top: 10px; padding: 12px; }
-        .sell-btn:disabled { background-color: #333; color: #666; cursor: not-allowed; }
+        .sell-btn:disabled { background-color: #211a35; color: #666; cursor: not-allowed; }
 
         .level-container { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 15px; }
-        .level-btn { background-color: #444; color: #aaa; font-size: 12px; padding: 10px; }
-        .level-btn.affordable { background-color: #e67e22 !important; color: white !important; }
+        .level-btn { background-color: #2a2140; color: #aaa; font-size: 12px; padding: 10px; }
+        .level-btn.affordable { background-color: #2de3ff !important; color: white !important; }
 
-        .shop-btn { background-color: #444; color: #999; cursor: not-allowed; font-size: 11px; padding: 8px 12px; border-radius: 4px; width: 90px; text-align: center; }
+        .shop-btn { background-color: #2a2140; color: #999; cursor: not-allowed; font-size: 11px; padding: 8px 12px; border-radius: 4px; width: 90px; text-align: center; }
         .shop-btn.affordable { background-color: var(--success-color) !important; color: white !important; cursor: pointer; }
-        .shop-btn.owned { background-color: #222 !important; color: #555 !important; cursor: not-allowed; border: 1px solid #333; }
-        .shop-btn.active-item { background-color: var(--accent-color) !important; color: #1e1e1e !important; cursor: not-allowed; }
+        .shop-btn.owned { background-color: #1d1830 !important; color: #362a4d !important; cursor: not-allowed; border: 1px solid #211a35; }
+        .shop-btn.active-item { background-color: var(--accent-color) !important; color: #171225 !important; cursor: not-allowed; }
 
-        .progress-box { background: #333; height: 20px; width: 100%; border-radius: 5px; margin-bottom: 10px; display: none; overflow: hidden; position: relative; }
+        .progress-box { background: #211a35; height: 20px; width: 100%; border-radius: 5px; margin-bottom: 10px; display: none; overflow: hidden; position: relative; }
         .bar { height: 100%; width: 0%; background: var(--accent-color); position: relative; overflow: hidden; }
         .bar::after, .ordnungsamt-fill::after {
             content: '';
@@ -91,7 +126,7 @@
         }
         .prog-text { position: absolute; width: 100%; text-align: center; font-size: 11px; top: 2px; font-weight: bold; color: #fff; z-index: 5; }
         .upgrade-list { display: flex; flex-direction: column; gap: 8px; }
-        .upgrade-item { display: flex; justify-content: space-between; align-items: center; background: #222; padding: 10px; border-radius: 6px; border: 1px solid var(--border-color); }
+        .upgrade-item { display: flex; justify-content: space-between; align-items: center; background: #1d1830; padding: 10px; border-radius: 6px; border: 1px solid var(--border-color); }
         .rarity-bronze { border-left: 3px solid #cd7f32; }
         .rarity-silver { border-left: 3px solid #c0c0c0; }
         .rarity-gold { border-left: 3px solid #ffd700; box-shadow: 0 0 6px rgba(255,215,0,0.25); }
@@ -105,17 +140,17 @@
         .item-desc { font-size: 11px; color: #aaa; margin-top: 2px; }
 
         .event-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); display: none; align-items: center; justify-content: center; z-index: 1000; padding: 20px; box-sizing: border-box; }
-        .event-box { background: #1e1e1e; border: 2px solid var(--accent-color); border-radius: 14px; padding: 22px; max-width: 320px; text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,0.6); }
+        .event-box { background: #171225; border: 2px solid var(--accent-color); border-radius: 14px; padding: 22px; max-width: 320px; text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,0.6); }
         .event-icon { font-size: 34px; margin-bottom: 8px; }
         .event-text { font-size: 14px; color: #eee; margin-bottom: 10px; }
         .event-reward { font-size: 16px; font-weight: bold; color: var(--success-color); margin-bottom: 16px; }
-        .event-btn { background-color: var(--accent-color); color: #1e1e1e; width: 100%; padding: 12px; font-size: 14px; }
+        .event-btn { background-color: var(--accent-color); color: #171225; width: 100%; padding: 12px; font-size: 14px; }
 
-        .ordnungsamt-track { background: #333; height: 12px; border-radius: 6px; overflow: hidden; position: relative; }
-        .ordnungsamt-fill { height: 100%; width: 0%; background: linear-gradient(90deg, #e67e22, #e74c3c); transition: width 0.3s; position: relative; overflow: hidden; }
-        .prestige-btn { background: linear-gradient(90deg, #9b59b6, #e67e22); color: #fff; }
+        .ordnungsamt-track { background: #211a35; height: 12px; border-radius: 6px; overflow: hidden; position: relative; }
+        .ordnungsamt-fill { height: 100%; width: 0%; background: linear-gradient(90deg, #2de3ff, #e74c3c); transition: width 0.3s; position: relative; overflow: hidden; }
+        .prestige-btn { background: linear-gradient(90deg, #9b59b6, #2de3ff); color: #fff; }
 
-        .login-input { width: 100%; padding: 10px; margin-bottom: 8px; border-radius: 6px; border: none; box-sizing: border-box; font-size: 14px; background: #333; color: #fff; }
+        .login-input { width: 100%; padding: 10px; margin-bottom: 8px; border-radius: 6px; border: none; box-sizing: border-box; font-size: 14px; background: #211a35; color: #fff; }
         .login-google-btn { background: #4285F4; color: #fff; }
         .login-status { font-size: 11px; color: #aaa; margin-top: 6px; text-align: center; }
 
@@ -211,7 +246,7 @@
         .avatar-border-silver { border: 3px solid #c0c0c0 !important; box-shadow: 0 0 6px rgba(192,192,192,0.4); }
         .avatar-border-gold { border: 3px solid #ffd700 !important; box-shadow: 0 0 10px rgba(255,215,0,0.5); }
         .avatar-border-purple { border: 3px solid #9b59b6 !important; box-shadow: 0 0 12px rgba(155,89,182,0.6); }
-        .avatar-border-legendary { border: 4px solid #f39c12 !important; animation: legendaryAvatarGlow 2s ease-in-out infinite alternate; }
+        .avatar-border-legendary { border: 4px solid #ff2fb0 !important; animation: legendaryAvatarGlow 2s ease-in-out infinite alternate; }
         @keyframes legendaryAvatarGlow {
             from { box-shadow: 0 0 10px rgba(243,156,18,0.5), 0 0 20px rgba(155,89,182,0.3); }
             to { box-shadow: 0 0 20px rgba(243,156,18,0.9), 0 0 35px rgba(155,89,182,0.6); }
@@ -226,11 +261,22 @@
         }
         .dashboard-subtitle { text-align: center; font-size: 11px; color: #999; margin-bottom: 14px; text-transform: uppercase; letter-spacing: 1px; }
         .dashboard-stats-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-bottom: 16px; }
-        .dashboard-stat-box { background: #222; border-radius: 8px; padding: 8px; text-align: center; }
+        .dashboard-stat-box { background: #1d1830; border-radius: 8px; padding: 8px; text-align: center; }
         .badge-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; }
-        .badge { aspect-ratio: 1; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 18px; background: #222; border: 1px solid var(--border-color); cursor: pointer; }
+        .badge { aspect-ratio: 1; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 18px; background: #1d1830; border: 1px solid var(--border-color); cursor: pointer; }
         .badge.unlocked { background: linear-gradient(135deg, rgba(243,156,18,0.28), rgba(155,89,182,0.22)); border-color: var(--accent-color); }
-        .badge.locked { color: #444; opacity: 0.6; }
+        .badge.locked { color: #2a2140; opacity: 0.6; }
+
+        /* Kennzahlen-Anzeige: markante Neon-Digitalanzeige-Optik für zentrale Werte */
+        #lvl-display, #money, #bottles, #combat-power, #reputation-display,
+        #dash-level, #dash-rep, #dash-money, #dash-clan,
+        #train-attack-display, #train-defense-display, #combat-power-icon,
+        .dashboard-stat-box > div:last-child {
+            font-family: 'Rajdhani', sans-serif;
+            font-weight: 700;
+            letter-spacing: 0.3px;
+            text-shadow: 0 0 6px rgba(255,47,176,0.35);
+        }
     </style>
 </head>
 <body>
@@ -245,7 +291,7 @@
 
     <!-- Permanente Statusanzeige -->
     <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 10px;">
-        <div class="job-card" style="text-align: center; margin-bottom: 0;"><div style="font-size: 9px; color: #888; font-weight: bold;">LEVEL</div><div id="lvl-display" style="font-size: 14px; color: #e67e22; font-weight: bold;">1 / 1000</div></div>
+        <div class="job-card" style="text-align: center; margin-bottom: 0;"><div style="font-size: 9px; color: #888; font-weight: bold;">LEVEL</div><div id="lvl-display" style="font-size: 14px; color: #2de3ff; font-weight: bold;">1 / 1000</div></div>
         <div class="job-card" style="text-align: center; margin-bottom: 0;"><div style="font-size: 9px; color: #888; font-weight: bold;">KONTOSTAND</div><div id="money" style="font-size: 14px; color: var(--accent-color); font-weight: bold;">0,00 €</div></div>
         <div class="job-card" style="text-align: center; margin-bottom: 0;"><div style="font-size: 9px; color: #888; font-weight: bold;">TASCHE</div><div id="bottles" style="font-size: 14px; color: var(--accent-color); font-weight: bold;">0 / 20</div></div>
     </div>
@@ -287,7 +333,7 @@
         <div class="job-card">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
                 <div class="section-title" style="margin:0;"><i class="fas fa-user-shield icon"></i>Ordnungsamt im Anmarsch</div>
-                <button class="btn-sm" style="padding:4px 8px; font-size:9px; background:#555;" onclick="hideFromOrdnungsamt()"><i class="fas fa-eye-slash"></i> Verstecken!</button>
+                <button class="btn-sm" style="padding:4px 8px; font-size:9px; background:#362a4d;" onclick="hideFromOrdnungsamt()"><i class="fas fa-eye-slash"></i> Verstecken!</button>
             </div>
             <div class="ordnungsamt-track"><div id="ordnungsamt-fill" class="ordnungsamt-fill"></div></div>
         </div>
@@ -296,7 +342,7 @@
 
         <div class="section-title"><i class="fas fa-hand-holding-dollar icon"></i>Organisiertes Schnorren (Geld)</div>
         <div class="job-card">
-            <div id="beg-prog" class="progress-box"><div id="beg-bar" class="bar" style="background: #2ecc71;"></div><div id="beg-text" class="prog-text"></div></div>
+            <div id="beg-prog" class="progress-box"><div id="beg-bar" class="bar" style="background: #39ff6a;"></div><div id="beg-text" class="prog-text"></div></div>
             <div id="beg-controls" class="tour-options">
                 <button class="btn-sm" onclick="startJob('beg', 1)">1m</button><button class="btn-sm" onclick="startJob('beg', 3)">3m</button>
                 <button class="btn-sm" onclick="startJob('beg', 5)">5m</button><button class="btn-sm" onclick="startJob('beg', 10)">10m</button>
@@ -337,7 +383,7 @@
             <input id="roulette-bet-amount" type="number" placeholder="Einsatz in €" class="login-input" min="1" step="1">
             <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:6px; margin-bottom:8px;">
                 <button class="btn-sm" style="background:#c0392b; color:#fff; padding:10px;" onclick="spinRoulette('red')">🔴 Rot (2x)</button>
-                <button class="btn-sm" style="background:#222; color:#fff; padding:10px; border:1px solid #444;" onclick="spinRoulette('black')">⚫ Schwarz (2x)</button>
+                <button class="btn-sm" style="background:#1d1830; color:#fff; padding:10px; border:1px solid #2a2140;" onclick="spinRoulette('black')">⚫ Schwarz (2x)</button>
                 <button class="btn-sm" style="background:#27ae60; color:#fff; padding:10px;" onclick="spinRoulette('green')">🟢 Null (35x)</button>
             </div>
             <div id="roulette-status" style="text-align:center; font-size:11px; color:#888;"></div>
@@ -419,7 +465,7 @@
         <div class="job-card">
             <div class="item-desc" style="margin-bottom:8px;">Freie Ziele für ein schnelles Duell – kein Name nötig, dafür etwas geringere Belohnung.</div>
             <div id="bot-opponent-list" style="display:flex; flex-direction:column; gap:6px; margin-bottom:8px;"></div>
-            <button class="btn-sm" style="width:100%; background:#555; color:#fff; padding:8px;" onclick="refreshBotOpponents()">🔄 Neue Gegner suchen</button>
+            <button class="btn-sm" style="width:100%; background:#362a4d; color:#fff; padding:8px;" onclick="refreshBotOpponents()">🔄 Neue Gegner suchen</button>
         </div>
     </div>
 
@@ -430,7 +476,7 @@
             <div id="global-chat-messages" style="max-height:150px; overflow-y:auto; font-size:12px; margin-bottom:8px; padding-right:4px;"></div>
             <div style="display:flex; gap:6px;">
                 <input id="global-chat-input" type="text" placeholder="Nachricht..." class="login-input" style="margin-bottom:0; flex:1;" maxlength="200">
-                <button class="btn-sm" style="background:var(--accent-color); color:#1e1e1e; padding:0 14px;" onclick="sendGlobalChatMessage()"><i class="fas fa-paper-plane"></i></button>
+                <button class="btn-sm" style="background:var(--accent-color); color:#171225; padding:0 14px;" onclick="sendGlobalChatMessage()"><i class="fas fa-paper-plane"></i></button>
             </div>
         </div>
 
@@ -447,7 +493,7 @@
         <div class="job-card">
             <div id="clan-none" style="display:none;">
                 <input id="clan-name-input" type="text" placeholder="Clan-Name" class="login-input">
-                <button class="btn-sm" style="width:100%; margin-bottom:6px; background:#e67e22; color:#fff; padding:10px;" onclick="createClan()">Clan gründen</button>
+                <button class="btn-sm" style="width:100%; margin-bottom:6px; background:#2de3ff; color:#fff; padding:10px;" onclick="createClan()">Clan gründen</button>
                 <button class="btn-sm" style="width:100%; background:#3498db; color:#fff; padding:10px;" onclick="joinClan()">Clan beitreten</button>
             </div>
             <div id="clan-active" style="display:none;">
@@ -456,7 +502,7 @@
                     <button class="btn-sm" style="padding:4px 8px; font-size:9px; background:#c0392b; color:#fff;" onclick="leaveClan()">Verlassen</button>
                 </div>
                 <div id="clan-board" style="font-size:11px; color:#ccc;"></div>
-                <div id="clan-treasury-box" style="background:#1a1a1a; border-radius:6px; padding:8px 10px; margin-top:10px;">
+                <div id="clan-treasury-box" style="background:#171225; border-radius:6px; padding:8px 10px; margin-top:10px;">
                     <div style="display:flex; justify-content:space-between; font-size:11px; color:#ccc; margin-bottom:4px;">
                         <span>💰 Clan-Kasse: <span id="clan-treasury-amount" style="color:var(--accent-color); font-weight:bold;">0 €</span></span>
                         <span id="clan-treasury-bonus" style="color:var(--success-color); font-weight:bold;"></span>
@@ -471,10 +517,10 @@
                 <div id="war-history"></div>
                 <div style="margin-top:12px;">
                     <div style="font-size:10px; color:#888; margin-bottom:4px;">Clan-Chat:</div>
-                    <div id="clan-chat-messages" style="max-height:120px; overflow-y:auto; font-size:11px; margin-bottom:6px; background:#1a1a1a; border-radius:6px; padding:6px;"></div>
+                    <div id="clan-chat-messages" style="max-height:120px; overflow-y:auto; font-size:11px; margin-bottom:6px; background:#171225; border-radius:6px; padding:6px;"></div>
                     <div style="display:flex; gap:6px;">
                         <input id="clan-chat-input" type="text" placeholder="An deinen Clan..." class="login-input" style="margin-bottom:0; flex:1; font-size:12px;" maxlength="200">
-                        <button class="btn-sm" style="background:var(--accent-color); color:#1e1e1e; padding:0 12px;" onclick="sendClanChatMessage()"><i class="fas fa-paper-plane"></i></button>
+                        <button class="btn-sm" style="background:var(--accent-color); color:#171225; padding:0 12px;" onclick="sendClanChatMessage()"><i class="fas fa-paper-plane"></i></button>
                     </div>
                 </div>
             </div>
@@ -504,10 +550,10 @@
                 <div id="dashboard-avatar-deco" style="position:absolute; top:0; left:0; width:100%; height:100%; pointer-events:none;"></div>
             </div>
             <input type="file" id="avatar-file-input" accept="image/*" style="display:none;" onchange="handleAvatarUpload(event)">
-            <button class="btn-sm" style="background:#333; color:#fff; padding:6px 14px; margin-bottom:8px;" onclick="document.getElementById('avatar-file-input').click()"><i class="fas fa-camera"></i> Eigenes Bild hochladen</button>
+            <button class="btn-sm" style="background:#211a35; color:#fff; padding:6px 14px; margin-bottom:8px;" onclick="document.getElementById('avatar-file-input').click()"><i class="fas fa-camera"></i> Eigenes Bild hochladen</button>
             <div id="dashboard-name" class="dashboard-name">Gast</div>
             <div id="dashboard-title" class="dashboard-subtitle">Frischling auf der Straße</div>
-            <button id="sound-toggle-btn" class="btn-sm" style="background:#333; color:#fff; padding:6px 14px; margin-bottom:10px;" onclick="toggleSound()"><i class="fas fa-volume-up"></i> Sound</button>
+            <button id="sound-toggle-btn" class="btn-sm" style="background:#211a35; color:#fff; padding:6px 14px; margin-bottom:10px;" onclick="toggleSound()"><i class="fas fa-volume-up"></i> Sound</button>
             <div id="dashboard-combat-rank" style="font-size:11px; color:#c0392b; font-weight:bold; margin-bottom:10px;">🎖️ Grüner Anfänger</div>
             <div class="dashboard-stats-grid">
                 <div class="dashboard-stat-box"><div style="font-size:9px; color:#888;">LEVEL</div><div id="dash-level" style="font-weight:bold; color:var(--accent-color);">1</div></div>
@@ -537,7 +583,7 @@
             <div class="event-box" style="max-width:300px;">
                 <div class="event-icon">📺</div>
                 <div class="event-text" style="margin-bottom:10px;">Werbevideo wird abgespielt...</div>
-                <div style="background:#333; border-radius:6px; height:10px; overflow:hidden; margin-bottom:6px;">
+                <div style="background:#211a35; border-radius:6px; height:10px; overflow:hidden; margin-bottom:6px;">
                     <div id="ad-simulation-bar" style="background:var(--accent-color); height:100%; width:0%; transition:width 0.1s linear;"></div>
                 </div>
                 <div style="font-size:10px; color:#888;">Bitte warten...</div>
@@ -547,7 +593,7 @@
         <div class="section-title"><i class="fas fa-id-badge icon"></i>Spielername</div>
         <div class="job-card">
             <input id="nickname-input" type="text" placeholder="Dein Spielername" class="login-input" maxlength="20">
-            <button class="btn-sm" style="width:100%; background:#e67e22; color:#fff; padding:10px;" onclick="setNickname()">Speichern</button>
+            <button class="btn-sm" style="width:100%; background:#2de3ff; color:#fff; padding:10px;" onclick="setNickname()">Speichern</button>
             <div id="nickname-msg" style="text-align:center; font-size:11px; color:var(--success-color); margin-top:6px;"></div>
         </div>
 
@@ -563,11 +609,11 @@
             <div id="auth-forms">
                 <input id="login-email" type="email" placeholder="E-Mail" class="login-input">
                 <input id="login-password" type="password" placeholder="Passwort" class="login-input">
-                <button class="clicker-btn" style="background:#e67e22; font-size:14px; padding:10px; margin-bottom:8px;" onclick="doEmailLogin()">Einloggen / Registrieren</button>
+                <button class="clicker-btn" style="background:#2de3ff; font-size:14px; padding:10px; margin-bottom:8px;" onclick="doEmailLogin()">Einloggen / Registrieren</button>
                 <button class="clicker-btn login-google-btn" style="font-size:14px; padding:10px; margin-bottom:8px;" onclick="doGoogleLogin()">🔵 Mit Google anmelden</button>
             </div>
 
-            <button id="logout-btn" class="clicker-btn" style="background:#555; font-size:14px; padding:10px; display:none;" onclick="doLogout()">Ausloggen</button>
+            <button id="logout-btn" class="clicker-btn" style="background:#362a4d; font-size:14px; padding:10px; display:none;" onclick="doLogout()">Ausloggen</button>
             <div id="login-error" style="color:#e74c3c; font-size:11px; margin-top:8px; text-align:center;"></div>
         </div>
 
@@ -582,7 +628,7 @@
         <div style="perspective:600px; margin: 0 auto 16px auto; width:120px; height:170px;">
             <div id="playing-card" style="position:relative; width:100%; height:100%; transition: transform 0.8s; transform-style:preserve-3d;">
                 <div style="position:absolute; width:100%; height:100%; backface-visibility:hidden; background:linear-gradient(135deg,#9b59b6,#8e44ad); border-radius:10px; border:2px solid #fff; display:flex; align-items:center; justify-content:center; font-size:40px;">🂠</div>
-                <div id="playing-card-back" style="position:absolute; width:100%; height:100%; backface-visibility:hidden; transform:rotateY(180deg); background:#1e1e1e; border-radius:10px; border:2px solid var(--accent-color); display:flex; align-items:center; justify-content:center; font-size:48px;"></div>
+                <div id="playing-card-back" style="position:absolute; width:100%; height:100%; backface-visibility:hidden; transform:rotateY(180deg); background:#171225; border-radius:10px; border:2px solid var(--accent-color); display:flex; align-items:center; justify-content:center; font-size:48px;"></div>
             </div>
         </div>
         <div id="card-flip-result" style="font-size:15px; font-weight:bold; text-align:center; margin-bottom:14px;"></div>
@@ -605,13 +651,13 @@
     <div class="event-box" style="max-width:320px;">
         <div class="event-icon">👊</div>
         <div class="event-text">Triff die Lücke im richtigen Moment!</div>
-        <div id="fight-track" style="position:relative; width:100%; height:36px; background:#222; border-radius:8px; margin:14px 0; overflow:hidden; border:2px solid var(--border-color);">
+        <div id="fight-track" style="position:relative; width:100%; height:36px; background:#1d1830; border-radius:8px; margin:14px 0; overflow:hidden; border:2px solid var(--border-color);">
             <div id="fight-zone" class="fight-zone-pulse" style="position:absolute; top:0; height:100%; background:rgba(46,204,113,0.35); border-left:2px solid var(--success-color); border-right:2px solid var(--success-color);"></div>
             <div id="fight-marker" style="position:absolute; top:0; width:4px; height:100%; background:#fff; box-shadow:0 0 8px rgba(255,255,255,0.8);"></div>
         </div>
         <button class="event-btn" style="background:#c0392b;" onclick="resolveFightTap()">👊 Treffen!</button>
         <div id="fight-result" style="margin-top:10px; font-size:14px; font-weight:bold; text-align:center; min-height:40px;"></div>
-        <button class="btn-sm" style="width:100%; margin-top:6px; background:#333; color:#aaa;" onclick="closeFightOverlay()">Schließen</button>
+        <button class="btn-sm" style="width:100%; margin-top:6px; background:#211a35; color:#aaa;" onclick="closeFightOverlay()">Schließen</button>
     </div>
 </div>
 
@@ -621,7 +667,7 @@
         <div class="event-icon">⚔️</div>
         <div class="event-text" style="margin-bottom:10px;">Wen willst du herausfordern?</div>
         <div id="player-picker-list" style="max-height:280px; overflow-y:auto; display:flex; flex-direction:column; gap:6px; text-align:left;">Lade Spieler...</div>
-        <button class="btn-sm" style="width:100%; margin-top:10px; background:#333; color:#aaa;" onclick="closePlayerPicker()">Schließen</button>
+        <button class="btn-sm" style="width:100%; margin-top:10px; background:#211a35; color:#aaa;" onclick="closePlayerPicker()">Schließen</button>
     </div>
 </div>
 
@@ -644,7 +690,7 @@
         </div>
         <div class="section-title" style="text-align:left; margin-top:14px;"><i class="fas fa-medal icon"></i>Auszeichnungen</div>
         <div id="profile-view-badges" class="badge-grid"></div>
-        <button class="btn-sm" style="width:100%; margin-top:14px; background:#333; color:#aaa;" onclick="closePlayerProfile()">Schließen</button>
+        <button class="btn-sm" style="width:100%; margin-top:14px; background:#211a35; color:#aaa;" onclick="closePlayerProfile()">Schließen</button>
     </div>
 </div>
 
@@ -818,7 +864,7 @@
         let onCooldown = (state.botDuelEnd || 0) > now;
         let cooldownText = onCooldown ? Math.ceil(((state.botDuelEnd || 0) - now) / 1000) + 's' : null;
         el.innerHTML = currentBots.map((bot, idx) =>
-            '<div style="display:flex; justify-content:space-between; align-items:center; background:#1a1a1a; border-radius:6px; padding:8px 10px;">'
+            '<div style="display:flex; justify-content:space-between; align-items:center; background:#171225; border-radius:6px; padding:8px 10px;">'
             + '<div><div style="font-weight:bold; font-size:12px; color:#fff;">' + escapeHtml(bot.name) + '</div>'
             + '<div style="font-size:10px; color:#888;">Lvl ' + bot.level + ' · Ruf ' + bot.reputation + '</div></div>'
             + '<button class="btn-sm" style="padding:6px 10px; font-size:11px; background:#8e44ad; color:#fff;" '
@@ -966,7 +1012,7 @@
 
     function launchConfetti(count) {
         let effect = state.activeEffect && COSMETIC_EFFECTS[state.activeEffect];
-        const colors = effect ? effect.colors : ['#f39c12', '#2ecc71', '#3498db', '#9b59b6', '#e74c3c', '#f1c40f'];
+        const colors = effect ? effect.colors : ['#ff2fb0', '#39ff6a', '#3498db', '#9b59b6', '#e74c3c', '#f1c40f'];
         for (let i = 0; i < count; i++) {
             let el = document.createElement('div');
             el.className = 'confetti-piece';
@@ -1286,7 +1332,7 @@
                         : '';
                     let prestigeTag = (e.prestige > 0) ? ('P' + e.prestige + ' ') : '';
                     let ogTag = e.ogPlayer ? '🎖️ ' : '';
-                    return '<div style="display:flex; justify-content:space-between; align-items:center; background:#1a1a1a; border-radius:6px; padding:8px 10px; cursor:pointer;" onclick="executeDuel(\'' + e.uid + '\')">'
+                    return '<div style="display:flex; justify-content:space-between; align-items:center; background:#171225; border-radius:6px; padding:8px 10px; cursor:pointer;" onclick="executeDuel(\'' + e.uid + '\')">'
                         + '<span>' + avatarHtml + ogTag + prestigeTag + escapeHtml(e.name) + '</span>'
                         + '<span style="font-size:11px; color:#888;">👊 ' + (e.reputation || 0) + ' · Lvl ' + e.level + '</span>'
                         + '</div>';
@@ -1535,12 +1581,12 @@
             let rank = active ? (state.skillRank || 0) : 0;
             let dots = '';
             for (let i = 0; i < SKILL_MAX_RANK; i++) {
-                dots += '<span style="width:8px; height:8px; border-radius:50%; display:inline-block; margin-right:3px; background:' + (i < rank ? p.color : '#444') + ';"></span>';
+                dots += '<span style="width:8px; height:8px; border-radius:50%; display:inline-block; margin-right:3px; background:' + (i < rank ? p.color : '#2a2140') + ';"></span>';
             }
             let btnHtml = active
                 ? '<button class="btn-sm" style="width:100%; background:' + p.color + '; color:#fff; padding:6px;" ' + (rank >= SKILL_MAX_RANK ? 'disabled' : '') + ' onclick="upgradeSkillRank()">' + (rank >= SKILL_MAX_RANK ? 'Maximaler Rang' : '⬆️ Rang erhöhen') + '</button>'
-                : '<button class="btn-sm" style="width:100%; background:#444; color:#ccc; padding:6px;" onclick="chooseSkillPath(\'' + id + '\')">Richtung wählen</button>';
-            return '<div style="background:#1a1a1a; border-radius:6px; padding:10px; margin-bottom:8px; border:1px solid ' + (active ? p.color : 'transparent') + ';">'
+                : '<button class="btn-sm" style="width:100%; background:#2a2140; color:#ccc; padding:6px;" onclick="chooseSkillPath(\'' + id + '\')">Richtung wählen</button>';
+            return '<div style="background:#171225; border-radius:6px; padding:10px; margin-bottom:8px; border:1px solid ' + (active ? p.color : 'transparent') + ';">'
                 + '<div style="display:flex; justify-content:space-between; align-items:center;">'
                 + '<span style="font-weight:bold;">' + p.icon + ' ' + p.name + '</span>'
                 + (active ? '<span style="font-size:10px; color:' + p.color + ';">Rang ' + rank + '/' + SKILL_MAX_RANK + '</span>' : '')
@@ -1560,9 +1606,9 @@
         money: { name: 'Geldregen', price: 800, items: ['💵', '💰', '💵', '💰', '💵', '💰', '💵', '💰'], radius: 53, size: 16, spin: true }
     };
     const COSMETIC_EFFECTS = {
-        fire: { name: 'Feuer-Partikel', price: 300, colors: ['#e74c3c', '#e67e22', '#f1c40f'] },
+        fire: { name: 'Feuer-Partikel', price: 300, colors: ['#e74c3c', '#2de3ff', '#f1c40f'] },
         ice: { name: 'Eis-Partikel', price: 300, colors: ['#74b9ff', '#dfe6e9', '#00cec9'] },
-        toxic: { name: 'Toxic-Partikel', price: 350, colors: ['#00b894', '#55efc4', '#2ecc71'] },
+        toxic: { name: 'Toxic-Partikel', price: 350, colors: ['#00b894', '#55efc4', '#39ff6a'] },
         royal: { name: 'Royal-Partikel', price: 500, colors: ['#f1c40f', '#9b59b6', '#ecf0f1'] }
     };
     const COSMETIC_ICONS = {
@@ -1620,9 +1666,9 @@
                 let owned = (state[cat.ownedKey] || []).indexOf(id) !== -1;
                 let active = state[cat.activeKey] === id;
                 let preview = item.icon || (item.items ? item.items[0] : '✨');
-                let btnColor = active ? '#555' : (owned ? '#2980b9' : '#27ae60');
+                let btnColor = active ? '#362a4d' : (owned ? '#2980b9' : '#27ae60');
                 let btnLabel = active ? 'Aktiv ✓' : (owned ? 'Ausrüsten' : item.price.toFixed(0) + ' €');
-                html += '<div style="display:flex; justify-content:space-between; align-items:center; background:#1a1a1a; border-radius:6px; padding:8px 10px; margin-bottom:6px; ' + (active ? 'border:1px solid var(--accent-color);' : '') + '">'
+                html += '<div style="display:flex; justify-content:space-between; align-items:center; background:#171225; border-radius:6px; padding:8px 10px; margin-bottom:6px; ' + (active ? 'border:1px solid var(--accent-color);' : '') + '">'
                     + '<span style="font-size:12px;">' + preview + ' ' + item.name + '</span>'
                     + '<button class="btn-sm" style="padding:5px 10px; font-size:10px; background:' + btnColor + '; color:#fff;" onclick="buyCosmetic(\'' + catId + '\',\'' + id + '\')">' + btnLabel + '</button>'
                     + '</div>';
@@ -2141,7 +2187,7 @@
             let count = uids.length;
             let mine = state.userId && uids.indexOf(state.userId) !== -1;
             return '<span onclick="toggleMessageReaction(\'' + coll + '\',\'' + msg.id + '\',\'' + e + '\')" style="cursor:pointer; font-size:11px; padding:1px 5px; border-radius:10px; background:'
-                + (mine ? 'var(--accent-color)' : '#2a2a2a') + '; color:' + (mine ? '#1e1e1e' : '#aaa') + ';">'
+                + (mine ? 'var(--accent-color)' : '#241c3d') + '; color:' + (mine ? '#171225' : '#aaa') + ';">'
                 + e + (count > 0 ? ' ' + count : '') + '</span>';
         }).join('') + '</div>';
     }
@@ -2201,7 +2247,7 @@
                 if (m.isSystem) {
                     return '<div style="margin-bottom:4px; color:var(--accent-color); font-style:italic; text-align:center;">' + escapeHtml(m.text) + '</div>';
                 }
-                let mine = (m.name === state.playerName) ? 'color:#f39c12;' : '';
+                let mine = (m.name === state.playerName) ? 'color:#ff2fb0;' : '';
                 let avatarHtml = imageMap[m.userId]
                     ? '<img src="' + imageMap[m.userId] + '" style="width:16px; height:16px; border-radius:50%; object-fit:cover; vertical-align:middle; margin-right:4px;">'
                     : '';
@@ -2243,7 +2289,7 @@
             let messages = snap.docs.map(d => Object.assign({ id: d.id }, d.data())).sort((a, b) => a.timestamp - b.timestamp).slice(-30);
             let imageMap = await fetchProfileImages(messages.map(m => m.userId));
             el.innerHTML = messages.map(m => {
-                let mine = (m.name === state.playerName) ? 'color:#f39c12;' : '';
+                let mine = (m.name === state.playerName) ? 'color:#ff2fb0;' : '';
                 let avatarHtml = imageMap[m.userId]
                     ? '<img src="' + imageMap[m.userId] + '" style="width:16px; height:16px; border-radius:50%; object-fit:cover; vertical-align:middle; margin-right:4px;">'
                     : '';
@@ -2279,7 +2325,7 @@
                 return;
             }
             el.innerHTML = clans.slice(0, 10).map((c, i) => {
-                let highlight = (c.id === state.clanId) ? "color:#f39c12; font-weight:bold;" : "";
+                let highlight = (c.id === state.clanId) ? "color:#ff2fb0; font-weight:bold;" : "";
                 return '<div style="display:flex; justify-content:space-between; padding:2px 0; ' + highlight + '">'
                     + '<span>' + (i + 1) + '. ' + escapeHtml(c.name) + '</span>'
                     + '<span>👊 ' + c.reputation + ' · ' + c.members + ' Mitgl.</span>'
@@ -2428,7 +2474,7 @@
             let minsLeft = Math.floor((remainingMs % 3600000) / 60000);
 
             if (statusEl) {
-                statusEl.innerHTML = '<div style="background:#222; border-radius:8px; padding:10px; text-align:center;">'
+                statusEl.innerHTML = '<div style="background:#1d1830; border-radius:8px; padding:10px; text-align:center;">'
                     + '<div style="font-size:12px; color:#aaa; margin-bottom:4px;">⚔️ Krieg gegen ' + escapeHtml(opponentName) + '</div>'
                     + '<div style="font-size:18px; font-weight:bold; color:var(--accent-color);">' + myWins + ' : ' + theirWins + '</div>'
                     + '<div style="font-size:10px; color:#888; margin-top:4px;">Noch ' + hoursLeft + 'h ' + minsLeft + 'min</div>'
@@ -2475,7 +2521,7 @@
                 + '</div>';
 
             let rowsHtml = members.map((m, i) => {
-                let highlight = (m.name === state.playerName) ? "color:#f39c12; font-weight:bold;" : "";
+                let highlight = (m.name === state.playerName) ? "color:#ff2fb0; font-weight:bold;" : "";
                 let achv = (m.achievements != null) ? (' · 🏅' + m.achievements) : '';
                 let money = (m.money != null) ? (' · ' + m.money.toFixed(2) + ' €') : '';
                 return '<div style="display:flex; justify-content:space-between; padding:2px 0; ' + highlight + '">'
@@ -2573,7 +2619,7 @@
             } else {
                 let imageMap = await fetchProfileImages(entries.map(e => e.uid));
                 el.innerHTML = entries.map((e, i) => {
-                    let highlight = (e.name === state.playerName) ? "color:#f39c12; font-weight:bold;" : "";
+                    let highlight = (e.name === state.playerName) ? "color:#ff2fb0; font-weight:bold;" : "";
                     let prestigeTag = (e.prestige > 0) ? ('P' + e.prestige + ' ') : '';
                     let ogTag = e.ogPlayer ? '🎖️ ' : '';
                     let rankBadge = getCombatRankBadge((e.attackPoints || 1) + (e.defensePoints || 1));
@@ -2942,7 +2988,7 @@
         for (let i = 0; i < segments; i++) {
             let num = ROULETTE_WHEEL_ORDER[i];
             let color = getRouletteColor(num);
-            let fill = color === 'red' ? '#c0392b' : (color === 'black' ? '#1a1a1a' : '#27ae60');
+            let fill = color === 'red' ? '#c0392b' : (color === 'black' ? '#171225' : '#27ae60');
             let startAngle = i * anglePer - 90 - anglePer / 2;
             let endAngle = startAngle + anglePer;
             let startRad = startAngle * Math.PI / 180;
@@ -2951,7 +2997,7 @@
             let y1 = cy + radius * Math.sin(startRad);
             let x2 = cx + radius * Math.cos(endRad);
             let y2 = cy + radius * Math.sin(endRad);
-            paths += '<path d="M' + cx + ',' + cy + ' L' + x1.toFixed(2) + ',' + y1.toFixed(2) + ' A' + radius + ',' + radius + ' 0 0,1 ' + x2.toFixed(2) + ',' + y2.toFixed(2) + ' Z" fill="' + fill + '" stroke="#333" stroke-width="0.5"/>';
+            paths += '<path d="M' + cx + ',' + cy + ' L' + x1.toFixed(2) + ',' + y1.toFixed(2) + ' A' + radius + ',' + radius + ' 0 0,1 ' + x2.toFixed(2) + ',' + y2.toFixed(2) + ' Z" fill="' + fill + '" stroke="#211a35" stroke-width="0.5"/>';
             let midAngle = i * anglePer - 90;
             let midRad = midAngle * Math.PI / 180;
             let labelR = radius * 0.75;
@@ -2959,7 +3005,7 @@
             let ly = cy + labelR * Math.sin(midRad);
             paths += '<text x="' + lx.toFixed(2) + '" y="' + ly.toFixed(2) + '" fill="#fff" font-size="7" text-anchor="middle" dominant-baseline="middle" transform="rotate(' + (midAngle + 90) + ', ' + lx.toFixed(2) + ', ' + ly.toFixed(2) + ')">' + num + '</text>';
         }
-        return '<svg viewBox="0 0 200 200" style="width:100%; height:100%;"><circle cx="100" cy="100" r="92" fill="#0d0d0d"/>' + paths + '<circle cx="100" cy="100" r="14" fill="#2c2c2c" stroke="#f39c12" stroke-width="2"/></svg>';
+        return '<svg viewBox="0 0 200 200" style="width:100%; height:100%;"><circle cx="100" cy="100" r="92" fill="#0d0d0d"/>' + paths + '<circle cx="100" cy="100" r="14" fill="#3a2b52" stroke="#ff2fb0" stroke-width="2"/></svg>';
     }
 
     function getWheelRotationForNumber(num) {
@@ -3732,6 +3778,14 @@
     }
 
     loadGame();
+
+    if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+            navigator.serviceWorker.register('service-worker.js').catch((e) => {
+                console.log('Service Worker konnte nicht registriert werden:', e);
+            });
+        });
+    }
 </script>
 
 </body>
