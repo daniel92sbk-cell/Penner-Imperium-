@@ -788,6 +788,7 @@
         dailyDuelGoalDate: '', dailyDuelGoalDone: false,
         homeUpgradeLevel: 0, petUpgradeLevel: 0, carUpgradeLevel: 0, employeeUpgradeLevel: 0, gearUpgradeLevel: 0,
         storyMilestonesShown: [],
+        myBots: [],
         shopCooldownEnd: 0,
         isOG: false, ogNumber: null, ogChecked: false
     };
@@ -2516,6 +2517,81 @@
         document.getElementById('event-text').innerText = milestone.title;
         document.getElementById('event-reward').innerHTML = '<span style="font-weight:normal; font-style:italic; font-size:13px; color:#ddd; display:block; margin-top:6px; line-height:1.4;">' + milestone.text + '</span>';
         overlay.style.display = 'flex';
+    }
+
+    function createBot() {
+        let input = document.getElementById('bot-name-input');
+        let name = input ? input.value.trim().slice(0, 20) : '';
+        if (!name) return alert('Bitte einen Namen für den Bot eingeben.');
+        if (!state.myBots) state.myBots = [];
+        let botId = 'bot_' + name.toLowerCase().replace(/[^a-z0-9]/g, '') + '_' + Math.floor(Math.random() * 10000);
+        let newBot = {
+            id: botId,
+            name: name,
+            level: 1 + Math.floor(Math.random() * 30),
+            money: Math.random() * 200,
+            reputation: Math.floor(Math.random() * 40),
+            achievements: Math.floor(Math.random() * 5)
+        };
+        state.myBots.push(newBot);
+        if (input) input.value = '';
+        saveGame();
+        syncBot(newBot);
+        renderBotList();
+    }
+
+    function removeBot(botId) {
+        if (!state.myBots) return;
+        state.myBots = state.myBots.filter(b => b.id !== botId);
+        saveGame();
+        renderBotList();
+    }
+
+    async function syncBot(bot) {
+        if (!window.fbReady) return;
+        try {
+            await window.fbSetDoc(window.fbDoc(window.fbDb, "leaderboard", bot.id), {
+                name: bot.name,
+                money: bot.money,
+                level: Math.floor(bot.level),
+                prestige: 0,
+                achievements: bot.achievements,
+                reputation: Math.floor(bot.reputation),
+                clanId: null,
+                clanName: null,
+                ogPlayer: false,
+                attackPoints: 1 + Math.floor(bot.level / 20),
+                defensePoints: 1 + Math.floor(bot.level / 25),
+                unlockedAchievements: [],
+                updated: Date.now()
+            });
+        } catch (e) {
+            console.log('Bot konnte nicht synchronisiert werden:', e);
+        }
+    }
+
+    function tickBots() {
+        if (!state.myBots || state.myBots.length === 0) return;
+        state.myBots.forEach(bot => {
+            bot.money += Math.random() * 5;
+            if (Math.random() < 0.3) bot.reputation += 1;
+            if (Math.random() < 0.05 && bot.level < 1000) bot.level += 1;
+            syncBot(bot);
+        });
+        saveGame();
+    }
+    setInterval(tickBots, 45000);
+
+    function renderBotList() {
+        let el = document.getElementById('bot-list');
+        if (!el) return;
+        if (!state.myBots || state.myBots.length === 0) { el.innerHTML = 'Noch keine Bots erstellt.'; return; }
+        el.innerHTML = state.myBots.map(b =>
+            '<div style="display:flex; justify-content:space-between; align-items:center; padding:3px 0;">'
+            + '<span>' + escapeHtml(b.name) + ' (Lvl ' + Math.floor(b.level) + ')</span>'
+            + '<button class="btn-sm" style="padding:2px 8px; font-size:9px; background:#c0392b; color:#fff;" onclick="removeBot(\'' + b.id + '\')">Entfernen</button>'
+            + '</div>'
+        ).join('');
     }
 
     function saveGame() { state.lastSeen = Date.now(); localStorage.setItem('penner_v4_9_save', JSON.stringify(state)); }
