@@ -407,6 +407,13 @@
             <button id="btn-challenge-player" class="btn-sm" style="width:100%; background:#8e44ad; color:#fff; padding:10px;" onclick="challengePlayer()">⚔️ Spieler herausfordern</button>
             <div id="daily-duel-goal-status" style="font-size:10px; color:#888; text-align:center; margin-top:8px;"></div>
         </div>
+
+        <div class="section-title"><i class="fas fa-robot icon"></i>Gegner in der Nähe</div>
+        <div class="job-card">
+            <div class="item-desc" style="margin-bottom:8px;">Freie Ziele für ein schnelles Duell – kein Name nötig, dafür etwas geringere Belohnung.</div>
+            <div id="bot-opponent-list" style="display:flex; flex-direction:column; gap:6px; margin-bottom:8px;"></div>
+            <button class="btn-sm" style="width:100%; background:#555; color:#fff; padding:8px;" onclick="refreshBotOpponents()">🔄 Neue Gegner suchen</button>
+        </div>
     </div>
 
     <!-- TAB: KIEZ & CLAN -->
@@ -565,6 +572,16 @@
     </div>
 </div>
 
+<!-- Spieler-Auswahl für Duell -->
+<div id="player-picker-overlay" class="event-overlay">
+    <div class="event-box" style="max-width:340px;">
+        <div class="event-icon">⚔️</div>
+        <div class="event-text" style="margin-bottom:10px;">Wen willst du herausfordern?</div>
+        <div id="player-picker-list" style="max-height:280px; overflow-y:auto; display:flex; flex-direction:column; gap:6px; text-align:left;">Lade Spieler...</div>
+        <button class="btn-sm" style="width:100%; margin-top:10px; background:#333; color:#aaa;" onclick="closePlayerPicker()">Schließen</button>
+    </div>
+</div>
+
 <!-- Spieler-Profil Popup -->
 <div id="player-profile-overlay" class="event-overlay">
     <div class="event-box" style="max-width:340px; text-align:center;">
@@ -716,6 +733,100 @@
         'Die Kampfsport-Rentnerin aus dem 3. Stock', 'Big Manni vom Kiosk',
         'Der maskierte Flaschenpfand-Rächer'
     ];
+
+    const BOT_NAME_POOL = [
+        'Container-Conny', 'Zigaretten-Sammler Jörg', 'Die Legende vom Alex',
+        'Fusel-Fred', 'Bahnhofsvorplatz-Boss', 'Karton-König Klaus',
+        'Pfandflaschen-Petra', 'Nachtschicht-Norbert', 'Der Mann mit dem Zauberkarton',
+        'Suppenküchen-Sieger', 'Tunnel-Theo', 'Wärmestuben-Wolfgang',
+        'Die Zeitungsfrau vom Kiosk', 'Schrott-Sammler Sven', 'Eckkneipen-Egon',
+        'Parkbank-Petzold', 'Mülltonnen-Mike', 'Pappkarton-Prinzessin'
+    ];
+
+    let currentBots = [];
+
+    function generateSingleBot(excludeNames) {
+        let usedNames = excludeNames || [];
+        let available = BOT_NAME_POOL.filter(n => !usedNames.includes(n));
+        let pool = available.length > 0 ? available : BOT_NAME_POOL;
+        let name = pool[Math.floor(Math.random() * pool.length)];
+        let variance = 0.5 + Math.random() * 1.1;
+        return {
+            name: name,
+            level: Math.max(1, Math.round((state.level || 1) * (0.6 + Math.random() * 0.8))),
+            attackPoints: Math.max(1, Math.round((state.attackPoints || 1) * variance)),
+            defensePoints: Math.max(1, Math.round((state.defensePoints || 1) * variance)),
+            reputation: Math.max(0, Math.round((state.reputation || 0) * (0.4 + Math.random() * 0.8)))
+        };
+    }
+
+    function generateBotOpponents() {
+        currentBots = [];
+        for (let i = 0; i < 5; i++) {
+            currentBots.push(generateSingleBot(currentBots.map(b => b.name)));
+        }
+    }
+
+    function renderBotOpponents() {
+        if (!currentBots || currentBots.length === 0) generateBotOpponents();
+        let el = document.getElementById('bot-opponent-list');
+        if (!el) return;
+        let now = Date.now();
+        let onCooldown = (state.botDuelEnd || 0) > now;
+        let cooldownText = onCooldown ? Math.ceil(((state.botDuelEnd || 0) - now) / 1000) + 's' : null;
+        el.innerHTML = currentBots.map((bot, idx) =>
+            '<div style="display:flex; justify-content:space-between; align-items:center; background:#1a1a1a; border-radius:6px; padding:8px 10px;">'
+            + '<div><div style="font-weight:bold; font-size:12px; color:#fff;">' + escapeHtml(bot.name) + '</div>'
+            + '<div style="font-size:10px; color:#888;">Lvl ' + bot.level + ' · Ruf ' + bot.reputation + '</div></div>'
+            + '<button class="btn-sm" style="padding:6px 10px; font-size:11px; background:#8e44ad; color:#fff;" '
+            + (onCooldown ? 'disabled' : '') + ' onclick="attackBotOpponent(' + idx + ')">'
+            + (onCooldown ? cooldownText : '⚔️ Angreifen') + '</button></div>'
+        ).join('');
+    }
+
+    function refreshBotOpponents() {
+        generateBotOpponents();
+        renderBotOpponents();
+    }
+
+    function attackBotOpponent(idx) {
+        if ((state.botDuelEnd || 0) > Date.now()) return;
+        let bot = currentBots[idx];
+        if (!bot) return;
+
+        let myPower = (state.attackPoints || 1) * 1.5 + (state.defensePoints || 1) * 0.5;
+        let theirPower = (bot.defensePoints || 1) * 1.5 + (bot.attackPoints || 1) * 0.5;
+        let winChance = Math.min(0.9, Math.max(0.1, myPower / (myPower + theirPower)));
+        let won = Math.random() < winChance;
+
+        state.botDuelEnd = Date.now() + 20000;
+
+        let overlay = document.getElementById('event-overlay');
+        if (won) {
+            let moneyGain = 3.00 * getMultiplier();
+            let repGain = 6;
+            addMoney(moneyGain);
+            state.reputation = (state.reputation || 0) + repGain;
+            state.duelsWon = (state.duelsWon || 0) + 1;
+            document.getElementById('event-icon').innerText = '🥊';
+            document.getElementById('event-text').innerHTML = 'Duell-Sieg gegen ' + escapeHtml(bot.name) + '!';
+            document.getElementById('event-reward').innerHTML = '+' + repGain + ' Ruf-Punkte, +' + moneyGain.toFixed(2) + ' €';
+            playSound('win');
+            launchConfetti(10);
+        } else {
+            let repLoss = 4;
+            state.reputation = Math.max(0, (state.reputation || 0) - repLoss);
+            document.getElementById('event-icon').innerText = '💥';
+            document.getElementById('event-text').innerText = 'Duell-Niederlage gegen ' + bot.name + '...';
+            document.getElementById('event-reward').innerText = '-' + repLoss + ' Ruf-Punkte';
+            playSound('lose');
+        }
+        if (overlay) overlay.style.display = 'flex';
+
+        currentBots.splice(idx, 1, generateSingleBot(currentBots.map(b => b.name)));
+        saveGame();
+        renderBotOpponents();
+    }
 
     const EVENTS = [
         { icon: '🪙', text: 'Ein Tourist wirft dir aus Mitleid ein paar Münzen zu!', apply: () => { let r = 2.00 * getMultiplier(); addMoney(r); return '+' + r.toFixed(2) + ' €'; } },
@@ -1094,20 +1205,61 @@
 
     async function challengePlayer() {
         if (state.duelEnd > Date.now()) return;
-        let name = prompt('Namen des Spielers eingeben, den du herausfordern willst:');
-        if (!name) return;
-        name = name.trim();
-        if (!name || name === state.playerName) return alert('Ungültiger Name oder du kannst dich nicht selbst herausfordern.');
+        let overlay = document.getElementById('player-picker-overlay');
+        let listEl = document.getElementById('player-picker-list');
+        if (overlay) overlay.style.display = 'flex';
+        if (listEl) listEl.innerHTML = 'Lade Spieler...';
+        if (!window.fbReady) {
+            if (listEl) listEl.innerHTML = 'Keine Verbindung zum Server.';
+            return;
+        }
         try {
             let q = window.fbQuery(
                 window.fbCollection(window.fbDb, "leaderboard"),
-                window.fbWhere("name", "==", name),
-                window.fbLimit(1)
+                window.fbOrderBy("reputation", "desc"),
+                window.fbLimit(30)
             );
             let snap = await window.fbGetDocs(q);
-            if (snap.empty) return alert('Diesen Spieler gibt es nicht oder er hat noch nicht gespielt.');
-            let opponent = snap.docs[0].data();
-            let opponentId = snap.docs[0].id;
+            let entries = snap.docs
+                .map(d => Object.assign({ uid: d.id }, d.data()))
+                .filter(e => e.name && e.name !== state.playerName);
+
+            if (entries.length === 0) {
+                if (listEl) listEl.innerHTML = 'Noch keine anderen Spieler gefunden.';
+                return;
+            }
+            let imageMap = await fetchProfileImages(entries.map(e => e.uid));
+            if (listEl) {
+                listEl.innerHTML = entries.map(e => {
+                    let avatarHtml = imageMap[e.uid]
+                        ? '<img src="' + imageMap[e.uid] + '" style="width:24px; height:24px; border-radius:50%; object-fit:cover; vertical-align:middle; margin-right:6px;">'
+                        : '';
+                    let prestigeTag = (e.prestige > 0) ? ('P' + e.prestige + ' ') : '';
+                    let ogTag = e.ogPlayer ? '🎖️ ' : '';
+                    return '<div style="display:flex; justify-content:space-between; align-items:center; background:#1a1a1a; border-radius:6px; padding:8px 10px; cursor:pointer;" onclick="executeDuel(\'' + e.uid + '\')">'
+                        + '<span>' + avatarHtml + ogTag + prestigeTag + escapeHtml(e.name) + '</span>'
+                        + '<span style="font-size:11px; color:#888;">👊 ' + (e.reputation || 0) + ' · Lvl ' + e.level + '</span>'
+                        + '</div>';
+                }).join('');
+            }
+        } catch (e) {
+            if (listEl) listEl.innerHTML = 'Spielerliste momentan nicht verfügbar.';
+        }
+    }
+
+    function closePlayerPicker() {
+        let overlay = document.getElementById('player-picker-overlay');
+        if (overlay) overlay.style.display = 'none';
+    }
+
+    async function executeDuel(opponentId) {
+        if (state.duelEnd > Date.now()) return;
+        closePlayerPicker();
+        try {
+            let oppSnap = await window.fbGetDoc(window.fbDoc(window.fbDb, "leaderboard", opponentId));
+            if (!oppSnap.exists()) return alert('Dieser Spieler ist nicht mehr verfügbar.');
+            let opponent = oppSnap.data();
+            let name = opponent.name;
             let opponentImageMap = await fetchProfileImages([opponentId]);
             let opponentAvatarHtml = opponentImageMap[opponentId]
                 ? '<img src="' + opponentImageMap[opponentId] + '" style="width:24px; height:24px; border-radius:50%; object-fit:cover; vertical-align:middle; margin-right:6px;">'
@@ -2836,6 +2988,13 @@
         let rivalPower = Math.max(1, 4 + (state.reputation || 0) * 0.25 + (Math.random() * 6 - 2));
         let rivalName = RIVALS[Math.floor(Math.random() * RIVALS.length)];
         let winChance = Math.min(0.92, Math.max(0.05, effectivePower / (effectivePower + rivalPower)));
+        // Ein guter/perfekter Treffer im grünen Bereich sichert den Sieg deutlich ab,
+        // statt komplett vom Zufall (nur Stats) abhängig zu sein.
+        if (quality >= 0.85) {
+            winChance = Math.max(winChance, 0.97);
+        } else if (quality >= 0.4) {
+            winChance = Math.max(winChance, 0.65);
+        }
         let won = Math.random() < winChance;
 
         let resultEl = document.getElementById('fight-result');
@@ -3151,6 +3310,8 @@
         if (cpEl) cpEl.innerText = getCombatPower();
         let repEl = document.getElementById('reputation-display');
         if (repEl) repEl.innerText = state.reputation || 0;
+        renderBotOpponents();
+
         let fightBtn = document.getElementById('btn-fight');
         if (fightBtn) {
             let remaining = state.fightEnd - now;
