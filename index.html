@@ -389,6 +389,13 @@
             </div>
         </div>
 
+        <div class="section-title"><i class="fas fa-sitemap icon"></i>Skill-Baum</div>
+        <div class="job-card">
+            <div class="item-desc" style="margin-bottom:8px;">Wähle eine Richtung und verteile Skillpunkte (freigeschaltet alle 50 Level + 3 pro Neustart). Ein Wechsel der Richtung setzt deinen Rang zurück.</div>
+            <div style="text-align:right; font-size:11px; color:var(--accent-color); font-weight:bold; margin-bottom:8px;">Verfügbare Skillpunkte: <span id="skill-points-available">0</span></div>
+            <div id="skill-tree-list"></div>
+        </div>
+
         <div class="section-title"><i class="fas fa-hand-fist icon"></i>Angriff trainieren</div>
         <div class="job-card">
             <div class="item-desc" style="margin-bottom:8px;">Erhöht deinen Angriffswert – wirkt sich auf Kiez-Kämpfe UND zukünftige Penner-Duelle aus.</div>
@@ -430,7 +437,7 @@
         <div class="section-title"><i class="fas fa-hand-fist icon"></i>Kiez-Kampf (Ruf-Punkte)</div>
         <div class="job-card">
             <div style="display:flex; justify-content:space-between; font-size:12px; color:#aaa; margin-bottom:8px;">
-                <span>Kampfkraft: <span id="combat-power" style="color:#fff; font-weight:bold;">1</span></span>
+                <span>Kampfkraft: <span id="combat-power" style="color:#fff; font-weight:bold;">1</span> <span id="combat-power-icon"></span></span>
                 <span>Ruf-Punkte: <span id="reputation-display" style="color:var(--accent-color); font-weight:bold;">0</span></span>
             </div>
             <button id="btn-fight" class="btn-sm" style="width:100%; padding:12px; font-size:13px; background:#c0392b; color:#fff;" onclick="startFight()">👊 Kämpfen!</button>
@@ -449,6 +456,17 @@
                     <button class="btn-sm" style="padding:4px 8px; font-size:9px; background:#c0392b; color:#fff;" onclick="leaveClan()">Verlassen</button>
                 </div>
                 <div id="clan-board" style="font-size:11px; color:#ccc;"></div>
+                <div id="clan-treasury-box" style="background:#1a1a1a; border-radius:6px; padding:8px 10px; margin-top:10px;">
+                    <div style="display:flex; justify-content:space-between; font-size:11px; color:#ccc; margin-bottom:4px;">
+                        <span>💰 Clan-Kasse: <span id="clan-treasury-amount" style="color:var(--accent-color); font-weight:bold;">0 €</span></span>
+                        <span id="clan-treasury-bonus" style="color:var(--success-color); font-weight:bold;"></span>
+                    </div>
+                    <div id="clan-treasury-progress" style="font-size:9px; color:#888; margin-bottom:6px;"></div>
+                    <div style="display:flex; gap:6px;">
+                        <input id="clan-treasury-input" type="number" min="1" step="1" placeholder="Betrag €" class="login-input" style="margin-bottom:0; flex:1; font-size:12px;">
+                        <button class="btn-sm" style="background:#27ae60; color:#fff; padding:0 12px;" onclick="depositToClanTreasury()">Einzahlen</button>
+                    </div>
+                </div>
                 <div id="war-status" style="margin-top:10px;"></div>
                 <div id="war-history"></div>
                 <div style="margin-top:12px;">
@@ -499,6 +517,31 @@
             </div>
             <div class="section-title" style="text-align:left; margin-top:0;"><i class="fas fa-medal icon"></i>Auszeichnungen</div>
             <div id="badge-grid" class="badge-grid"></div>
+        </div>
+
+        <div class="section-title"><i class="fas fa-video icon"></i>Bonus-Werbevideo</div>
+        <div class="job-card">
+            <div class="item-desc" style="margin-bottom:8px;">Schau dir freiwillig ein kurzes Video an und verdoppele dein gesamtes Einkommen für 30 Minuten.</div>
+            <div id="ad-boost-status" style="text-align:center; font-size:11px; margin-bottom:8px;"></div>
+            <button id="btn-watch-ad" class="btn-sm" style="width:100%; background:#e74c3c; color:#fff; padding:10px;" onclick="watchBonusAd()">📺 Werbevideo ansehen (2x Einkommen, 30 Min.)</button>
+        </div>
+
+        <div class="section-title"><i class="fas fa-star icon"></i>Kosmetik-Shop</div>
+        <div class="job-card">
+            <div class="item-desc" style="margin-bottom:4px;">Rein optisch – kein Einfluss auf Kampfkraft oder Einkommen. Einmal gekauft, jederzeit kostenlos wechselbar.</div>
+            <div id="cosmetic-shop-list"></div>
+        </div>
+
+        <!-- Simulation eines Werbevideos -->
+        <div id="ad-simulation-overlay" class="event-overlay" style="display:none;">
+            <div class="event-box" style="max-width:300px;">
+                <div class="event-icon">📺</div>
+                <div class="event-text" style="margin-bottom:10px;">Werbevideo wird abgespielt...</div>
+                <div style="background:#333; border-radius:6px; height:10px; overflow:hidden; margin-bottom:6px;">
+                    <div id="ad-simulation-bar" style="background:var(--accent-color); height:100%; width:0%; transition:width 0.1s linear;"></div>
+                </div>
+                <div style="font-size:10px; color:#888;">Bitte warten...</div>
+            </div>
         </div>
 
         <div class="section-title"><i class="fas fa-id-badge icon"></i>Spielername</div>
@@ -796,6 +839,7 @@
 
         let myPower = (state.attackPoints || 1) * 1.5 + (state.defensePoints || 1) * 0.5;
         let theirPower = (bot.defensePoints || 1) * 1.5 + (bot.attackPoints || 1) * 0.5;
+        myPower *= getFighterMultiplier();
         let winChance = Math.min(0.9, Math.max(0.1, myPower / (myPower + theirPower)));
         let won = Math.random() < winChance;
 
@@ -886,6 +930,11 @@
         currentHome: 'Gehweg', activePet: 'none', activeCar: 'none', activeEmployee: 'none',
         lastEmployeeTime: 0,
         prestigeCount: 0, totalEarned: 0, unlockedAchievements: [],
+        skillPath: null, skillRank: 0,
+        ownedFrames: [], activeFrame: null,
+        ownedEffects: [], activeEffect: null,
+        ownedIcons: [], activeIcon: null,
+        adBoostUntil: 0, adCooldownUntil: 0,
         ordnungsamtProgress: 0, loginStreak: 0, lastLoginDate: '',
         activeGear: 'none', reputation: 0, fightEnd: 0,
         playerName: null, userId: null,
@@ -916,7 +965,8 @@
     }
 
     function launchConfetti(count) {
-        const colors = ['#f39c12', '#2ecc71', '#3498db', '#9b59b6', '#e74c3c', '#f1c40f'];
+        let effect = state.activeEffect && COSMETIC_EFFECTS[state.activeEffect];
+        const colors = effect ? effect.colors : ['#f39c12', '#2ecc71', '#3498db', '#9b59b6', '#e74c3c', '#f1c40f'];
         for (let i = 0; i < count; i++) {
             let el = document.createElement('div');
             el.className = 'confetti-piece';
@@ -1268,6 +1318,7 @@
 
             let myPower = (state.attackPoints || 1) * 1.5 + (state.defensePoints || 1) * 0.5;
             let theirPower = (opponent.defensePoints || 1) * 1.5 + (opponent.attackPoints || 1) * 0.5;
+            myPower *= getFighterMultiplier();
             let winChance = Math.min(0.9, Math.max(0.1, myPower / (myPower + theirPower)));
             let won = Math.random() < winChance;
 
@@ -1426,9 +1477,227 @@
     }
     setInterval(updateTrainingUI, 1000);
 
+    const SKILL_PATHS = {
+        survivor: { name: 'Überlebenskünstler', icon: '🎒', desc: '+5% auf jegliches Einkommen pro Rang (max. 5 = +25%)', color: '#27ae60' },
+        fighter: { name: 'Straßenkämpfer', icon: '🥊', desc: '+8% Kampfkraft pro Rang (max. 5 = +40%) in allen Kämpfen', color: '#c0392b' },
+        networker: { name: 'Networker', icon: '🤝', desc: 'Stärkere Clan-Kriegsboni & mehr aus der Clan-Kasse pro Rang (max. 5)', color: '#3498db' }
+    };
+    const SKILL_MAX_RANK = 5;
+
+    function getTotalSkillPoints() {
+        return Math.floor((state.level || 1) / 50) + (state.prestigeCount || 0) * 3;
+    }
+
+    function getAvailableSkillPoints() {
+        return Math.max(0, getTotalSkillPoints() - (state.skillRank || 0));
+    }
+
+    function getSkillBonus(pathId) {
+        if (state.skillPath !== pathId) return 0;
+        return state.skillRank || 0;
+    }
+
+    function getFighterMultiplier() {
+        return 1 + getSkillBonus('fighter') * 0.08;
+    }
+
+    function chooseSkillPath(pathId) {
+        if (!SKILL_PATHS[pathId]) return;
+        if (state.skillPath === pathId) return;
+        if (state.skillPath && (state.skillRank || 0) > 0) {
+            if (!confirm('Richtung wechseln setzt deinen aktuellen Rang zurück (Skillpunkte bleiben erhalten und können neu verteilt werden). Fortfahren?')) return;
+        }
+        state.skillPath = pathId;
+        state.skillRank = 0;
+        saveGame();
+        renderSkillTree();
+    }
+
+    function upgradeSkillRank() {
+        if (!state.skillPath) return alert('Wähle zuerst eine Richtung.');
+        if ((state.skillRank || 0) >= SKILL_MAX_RANK) return alert('Maximaler Rang bereits erreicht.');
+        if (getAvailableSkillPoints() <= 0) return alert('Keine Skillpunkte verfügbar. Erreiche neue Level oder starte neu (Prestige), um mehr zu bekommen.');
+        state.skillRank = (state.skillRank || 0) + 1;
+        saveGame();
+        renderSkillTree();
+        playSound('levelup');
+        launchConfetti(12);
+    }
+
+    function renderSkillTree() {
+        let el = document.getElementById('skill-tree-list');
+        let pointsEl = document.getElementById('skill-points-available');
+        if (pointsEl) pointsEl.innerText = getAvailableSkillPoints();
+        if (!el) return;
+        el.innerHTML = Object.keys(SKILL_PATHS).map(id => {
+            let p = SKILL_PATHS[id];
+            let active = state.skillPath === id;
+            let rank = active ? (state.skillRank || 0) : 0;
+            let dots = '';
+            for (let i = 0; i < SKILL_MAX_RANK; i++) {
+                dots += '<span style="width:8px; height:8px; border-radius:50%; display:inline-block; margin-right:3px; background:' + (i < rank ? p.color : '#444') + ';"></span>';
+            }
+            let btnHtml = active
+                ? '<button class="btn-sm" style="width:100%; background:' + p.color + '; color:#fff; padding:6px;" ' + (rank >= SKILL_MAX_RANK ? 'disabled' : '') + ' onclick="upgradeSkillRank()">' + (rank >= SKILL_MAX_RANK ? 'Maximaler Rang' : '⬆️ Rang erhöhen') + '</button>'
+                : '<button class="btn-sm" style="width:100%; background:#444; color:#ccc; padding:6px;" onclick="chooseSkillPath(\'' + id + '\')">Richtung wählen</button>';
+            return '<div style="background:#1a1a1a; border-radius:6px; padding:10px; margin-bottom:8px; border:1px solid ' + (active ? p.color : 'transparent') + ';">'
+                + '<div style="display:flex; justify-content:space-between; align-items:center;">'
+                + '<span style="font-weight:bold;">' + p.icon + ' ' + p.name + '</span>'
+                + (active ? '<span style="font-size:10px; color:' + p.color + ';">Rang ' + rank + '/' + SKILL_MAX_RANK + '</span>' : '')
+                + '</div>'
+                + '<div style="font-size:10px; color:#888; margin:4px 0;">' + p.desc + '</div>'
+                + '<div style="margin-bottom:6px;">' + dots + '</div>'
+                + btnHtml
+                + '</div>';
+        }).join('');
+    }
+
+    const COSMETIC_FRAMES = {
+        fire: { name: 'Feuer-Ring', price: 250, items: ['🔥', '🔥', '🔥', '🔥', '🔥', '🔥'], radius: 51, size: 15, spin: true },
+        ice: { name: 'Eis-Ring', price: 250, items: ['❄️', '❄️', '❄️', '❄️'], radius: 50, size: 14, spin: false },
+        skull: { name: 'Totenkopf-Ring', price: 400, items: ['💀', '⚔️', '💀', '⚔️'], radius: 51, size: 15, spin: false },
+        gold: { name: 'Gold-Krone', price: 600, items: ['👑', '⭐', '👑', '⭐', '👑', '⭐'], radius: 52, size: 16, spin: true },
+        money: { name: 'Geldregen', price: 800, items: ['💵', '💰', '💵', '💰', '💵', '💰', '💵', '💰'], radius: 53, size: 16, spin: true }
+    };
+    const COSMETIC_EFFECTS = {
+        fire: { name: 'Feuer-Partikel', price: 300, colors: ['#e74c3c', '#e67e22', '#f1c40f'] },
+        ice: { name: 'Eis-Partikel', price: 300, colors: ['#74b9ff', '#dfe6e9', '#00cec9'] },
+        toxic: { name: 'Toxic-Partikel', price: 350, colors: ['#00b894', '#55efc4', '#2ecc71'] },
+        royal: { name: 'Royal-Partikel', price: 500, colors: ['#f1c40f', '#9b59b6', '#ecf0f1'] }
+    };
+    const COSMETIC_ICONS = {
+        skull: { name: 'Totenkopf-Icon', price: 200, icon: '💀' },
+        ninja: { name: 'Ninja-Icon', price: 350, icon: '🥷' },
+        demon: { name: 'Dämon-Icon', price: 350, icon: '👹' },
+        dragon: { name: 'Drachen-Icon', price: 500, icon: '🐉' }
+    };
+    const COSMETIC_CATALOG = {
+        frame: { label: '🖼️ Profilbild-Rahmen', items: COSMETIC_FRAMES, ownedKey: 'ownedFrames', activeKey: 'activeFrame' },
+        effect: { label: '✨ Kampf-Partikeleffekte', items: COSMETIC_EFFECTS, ownedKey: 'ownedEffects', activeKey: 'activeEffect' },
+        icon: { label: '🎖️ Kampfkraft-Icons', items: COSMETIC_ICONS, ownedKey: 'ownedIcons', activeKey: 'activeIcon' }
+    };
+
+    function buyCosmetic(category, id) {
+        let cat = COSMETIC_CATALOG[category];
+        if (!cat) return;
+        let item = cat.items[id];
+        if (!item) return;
+        if (!state[cat.ownedKey]) state[cat.ownedKey] = [];
+        let owned = state[cat.ownedKey];
+        if (owned.indexOf(id) !== -1) {
+            state[cat.activeKey] = (state[cat.activeKey] === id) ? null : id;
+        } else {
+            if (state.money < item.price) return alert('Nicht genug Geld für "' + item.name + '" (' + item.price.toFixed(0) + ' €).');
+            state.money -= item.price;
+            owned.push(id);
+            state[cat.activeKey] = id;
+            launchConfetti(15);
+            playSound('coin');
+        }
+        saveGame();
+        syncLeaderboard();
+        renderCosmeticShop();
+        renderAvatarFrame('dashboard-avatar-deco', (state.attackPoints || 1) + (state.defensePoints || 1));
+        updateCombatIconDisplay();
+    }
+
+    function updateCombatIconDisplay() {
+        let el = document.getElementById('combat-power-icon');
+        if (!el) return;
+        let icon = state.activeIcon && COSMETIC_ICONS[state.activeIcon];
+        el.innerText = icon ? icon.icon : '';
+    }
+
+    function renderCosmeticShop() {
+        let el = document.getElementById('cosmetic-shop-list');
+        if (!el) return;
+        let html = '';
+        Object.keys(COSMETIC_CATALOG).forEach(catId => {
+            let cat = COSMETIC_CATALOG[catId];
+            html += '<div style="font-size:10px; color:#888; text-transform:uppercase; margin:12px 0 6px 0;">' + cat.label + '</div>';
+            Object.keys(cat.items).forEach(id => {
+                let item = cat.items[id];
+                let owned = (state[cat.ownedKey] || []).indexOf(id) !== -1;
+                let active = state[cat.activeKey] === id;
+                let preview = item.icon || (item.items ? item.items[0] : '✨');
+                let btnColor = active ? '#555' : (owned ? '#2980b9' : '#27ae60');
+                let btnLabel = active ? 'Aktiv ✓' : (owned ? 'Ausrüsten' : item.price.toFixed(0) + ' €');
+                html += '<div style="display:flex; justify-content:space-between; align-items:center; background:#1a1a1a; border-radius:6px; padding:8px 10px; margin-bottom:6px; ' + (active ? 'border:1px solid var(--accent-color);' : '') + '">'
+                    + '<span style="font-size:12px;">' + preview + ' ' + item.name + '</span>'
+                    + '<button class="btn-sm" style="padding:5px 10px; font-size:10px; background:' + btnColor + '; color:#fff;" onclick="buyCosmetic(\'' + catId + '\',\'' + id + '\')">' + btnLabel + '</button>'
+                    + '</div>';
+            });
+        });
+        el.innerHTML = html;
+    }
+
+    // ---- Bonus-Werbevideo ----
+    const AD_BOOST_DURATION = 30 * 60 * 1000;
+    const AD_COOLDOWN = 45 * 60 * 1000;
+
+    function watchBonusAd() {
+        if ((state.adCooldownUntil || 0) > Date.now()) return;
+        let overlay = document.getElementById('ad-simulation-overlay');
+        let bar = document.getElementById('ad-simulation-bar');
+        let btn = document.getElementById('btn-watch-ad');
+        if (btn) btn.disabled = true;
+        if (overlay) overlay.style.display = 'flex';
+        let progress = 0;
+        let interval = setInterval(() => {
+            progress += 100 / 50;
+            if (bar) bar.style.width = Math.min(100, progress) + '%';
+            if (progress >= 100) {
+                clearInterval(interval);
+                if (overlay) overlay.style.display = 'none';
+                grantAdBoost();
+            }
+        }, 100);
+    }
+
+    function grantAdBoost() {
+        state.adBoostUntil = Date.now() + AD_BOOST_DURATION;
+        state.adCooldownUntil = Date.now() + AD_COOLDOWN;
+        saveGame();
+        let overlay = document.getElementById('event-overlay');
+        if (overlay) {
+            document.getElementById('event-icon').innerText = '📺';
+            document.getElementById('event-text').innerText = 'Bonus-Video abgeschlossen!';
+            document.getElementById('event-reward').innerText = '2x Einkommen für 30 Minuten aktiv';
+            overlay.style.display = 'flex';
+        }
+        playSound('win');
+        launchConfetti(20);
+        updateAdBoostUI();
+    }
+
+    function updateAdBoostUI() {
+        let statusEl = document.getElementById('ad-boost-status');
+        let btn = document.getElementById('btn-watch-ad');
+        if (!statusEl || !btn) return;
+        let now = Date.now();
+        if (state.adBoostUntil && state.adBoostUntil > now) {
+            let mins = Math.ceil((state.adBoostUntil - now) / 60000);
+            statusEl.innerHTML = '<span style="color:var(--success-color); font-weight:bold;">🔥 2x Einkommen aktiv – noch ' + mins + ' Min.</span>';
+        } else {
+            statusEl.innerText = '';
+        }
+        if (state.adCooldownUntil && state.adCooldownUntil > now) {
+            let mins = Math.ceil((state.adCooldownUntil - now) / 60000);
+            btn.disabled = true;
+            btn.innerText = '📺 Nächstes Video in ' + mins + ' Min.';
+        } else {
+            btn.disabled = false;
+            btn.innerText = '📺 Werbevideo ansehen (2x Einkommen, 30 Min.)';
+        }
+    }
+
     function getMultiplier() {
         let base = 1 + (state.prestigeCount || 0) * 0.1;
-        if (state.warBonusUntil && state.warBonusUntil > Date.now()) base += 0.2;
+        let networkerRank = getSkillBonus('networker');
+        if (state.warBonusUntil && state.warBonusUntil > Date.now()) base += 0.2 + networkerRank * 0.05;
+        base += (state.clanTreasuryBonus || 0) * (1 + networkerRank * 0.1);
+        base += getSkillBonus('survivor') * 0.05;
+        if (state.adBoostUntil && state.adBoostUntil > Date.now()) base += 1.0;
         return base;
     }
     function getClickAmount() { return 0.05 + (state.level - 1) * 0.005; }
@@ -1650,6 +1919,8 @@
                 attackPoints: state.attackPoints || 1,
                 defensePoints: state.defensePoints || 1,
                 unlockedAchievements: state.unlockedAchievements || [],
+                activeFrame: state.activeFrame || null,
+                activeIcon: state.activeIcon || null,
                 updated: Date.now()
             });
         } catch (e) {
@@ -1790,6 +2061,114 @@
         }
     }
 
+    const CLAN_TREASURY_TIERS = [
+        { threshold: 0, bonus: 0, label: 'Kein Bonus' },
+        { threshold: 500, bonus: 0.05, label: '+5% Einkommen' },
+        { threshold: 2000, bonus: 0.10, label: '+10% Einkommen' },
+        { threshold: 10000, bonus: 0.20, label: '+20% Einkommen' },
+        { threshold: 50000, bonus: 0.35, label: '+35% Einkommen' }
+    ];
+
+    function getClanTreasuryTier(amount) {
+        let tier = CLAN_TREASURY_TIERS[0];
+        for (let t of CLAN_TREASURY_TIERS) { if (amount >= t.threshold) tier = t; }
+        return tier;
+    }
+
+    function getNextClanTreasuryTier(amount) {
+        for (let t of CLAN_TREASURY_TIERS) { if (amount < t.threshold) return t; }
+        return null;
+    }
+
+    async function depositToClanTreasury() {
+        if (!state.clanId) return alert('Du musst in einem Clan sein.');
+        let input = document.getElementById('clan-treasury-input');
+        let amount = input ? parseFloat(input.value) : NaN;
+        if (!amount || amount <= 0) return alert('Bitte einen gültigen Betrag eingeben.');
+        if (amount > state.money) return alert('Du hast nicht genug Geld.');
+        try {
+            let snap = await window.fbGetDoc(window.fbDoc(window.fbDb, "clans", state.clanId));
+            if (!snap.exists || !snap.exists()) return alert('Clan nicht gefunden.');
+            let data = snap.data();
+            let newTreasury = (data.treasury || 0) + amount;
+            await window.fbSetDoc(window.fbDoc(window.fbDb, "clans", state.clanId), Object.assign({}, data, { treasury: newTreasury }));
+            state.money -= amount;
+            if (input) input.value = '';
+            saveGame();
+            refreshClanTreasury();
+        } catch (e) {
+            alert('Einzahlung fehlgeschlagen: ' + e.message);
+        }
+    }
+
+    async function refreshClanTreasury() {
+        let amountEl = document.getElementById('clan-treasury-amount');
+        let bonusEl = document.getElementById('clan-treasury-bonus');
+        let progressEl = document.getElementById('clan-treasury-progress');
+        if (!amountEl || !state.clanId || !window.fbReady) {
+            state.clanTreasuryBonus = 0;
+            return;
+        }
+        try {
+            let snap = await window.fbGetDoc(window.fbDoc(window.fbDb, "clans", state.clanId));
+            if (!snap.exists || !snap.exists()) return;
+            let data = snap.data();
+            let treasury = data.treasury || 0;
+            let tier = getClanTreasuryTier(treasury);
+            let nextTier = getNextClanTreasuryTier(treasury);
+
+            state.clanTreasuryBonus = tier.bonus;
+
+            amountEl.innerText = treasury.toFixed(2) + ' €';
+            if (bonusEl) bonusEl.innerText = tier.bonus > 0 ? tier.label + ' für alle' : '';
+            if (progressEl) {
+                progressEl.innerText = nextTier
+                    ? ('Noch ' + (nextTier.threshold - treasury).toFixed(2) + ' € bis ' + nextTier.label)
+                    : 'Höchste Stufe erreicht!';
+            }
+        } catch (e) {
+            if (amountEl) amountEl.innerText = '–';
+        }
+    }
+
+    const CHAT_REACTION_EMOJIS = ['👍', '😂', '🔥', '😢'];
+
+    function renderReactionBar(coll, msg) {
+        if (!msg.id) return '';
+        let reactions = msg.reactions || {};
+        return '<div style="display:flex; gap:6px; margin:2px 0 8px 0;">' + CHAT_REACTION_EMOJIS.map(e => {
+            let uids = reactions[e] || [];
+            let count = uids.length;
+            let mine = state.userId && uids.indexOf(state.userId) !== -1;
+            return '<span onclick="toggleMessageReaction(\'' + coll + '\',\'' + msg.id + '\',\'' + e + '\')" style="cursor:pointer; font-size:11px; padding:1px 5px; border-radius:10px; background:'
+                + (mine ? 'var(--accent-color)' : '#2a2a2a') + '; color:' + (mine ? '#1e1e1e' : '#aaa') + ';">'
+                + e + (count > 0 ? ' ' + count : '') + '</span>';
+        }).join('') + '</div>';
+    }
+
+    async function toggleMessageReaction(coll, messageId, emoji) {
+        if (!state.userId) return alert('Bitte zuerst einloggen, um zu reagieren.');
+        try {
+            let ref = window.fbDoc(window.fbDb, coll, messageId);
+            let snap = await window.fbGetDoc(ref);
+            if (!snap.exists || !snap.exists()) return;
+            let data = snap.data();
+            let reactions = data.reactions || {};
+            let uids = reactions[emoji] || [];
+            let uid = state.userId;
+            if (uids.indexOf(uid) !== -1) {
+                reactions[emoji] = uids.filter(u => u !== uid);
+                if (reactions[emoji].length === 0) delete reactions[emoji];
+            } else {
+                reactions[emoji] = uids.concat([uid]);
+            }
+            await window.fbSetDoc(ref, Object.assign({}, data, { reactions: reactions }));
+            if (coll === 'globalChat') refreshGlobalChat(); else refreshClanChat();
+        } catch (e) {
+            console.log('Reaktion fehlgeschlagen:', e);
+        }
+    }
+
     async function sendGlobalChatMessage() {
         let input = document.getElementById('global-chat-input');
         if (!input) return;
@@ -1816,7 +2195,7 @@
                 window.fbLimit(30)
             );
             let snap = await window.fbGetDocs(q);
-            let messages = snap.docs.map(d => d.data()).reverse();
+            let messages = snap.docs.map(d => Object.assign({ id: d.id }, d.data())).reverse();
             let imageMap = await fetchProfileImages(messages.map(m => m.userId));
             el.innerHTML = messages.map(m => {
                 if (m.isSystem) {
@@ -1826,7 +2205,8 @@
                 let avatarHtml = imageMap[m.userId]
                     ? '<img src="' + imageMap[m.userId] + '" style="width:16px; height:16px; border-radius:50%; object-fit:cover; vertical-align:middle; margin-right:4px;">'
                     : '';
-                return '<div style="margin-bottom:4px;">' + avatarHtml + '<span style="font-weight:bold; ' + mine + '">' + escapeHtml(m.name) + ':</span> ' + escapeHtml(m.text) + '</div>';
+                return '<div style="margin-bottom:2px;">' + avatarHtml + '<span style="font-weight:bold; ' + mine + '">' + escapeHtml(m.name) + ':</span> ' + escapeHtml(m.text) + '</div>'
+                    + renderReactionBar('globalChat', m);
             }).join('') || '<div style="color:#666;">Noch keine Nachrichten.</div>';
             el.scrollTop = el.scrollHeight;
         } catch (e) {
@@ -1860,14 +2240,15 @@
                 window.fbLimit(50)
             );
             let snap = await window.fbGetDocs(q);
-            let messages = snap.docs.map(d => d.data()).sort((a, b) => a.timestamp - b.timestamp).slice(-30);
+            let messages = snap.docs.map(d => Object.assign({ id: d.id }, d.data())).sort((a, b) => a.timestamp - b.timestamp).slice(-30);
             let imageMap = await fetchProfileImages(messages.map(m => m.userId));
             el.innerHTML = messages.map(m => {
                 let mine = (m.name === state.playerName) ? 'color:#f39c12;' : '';
                 let avatarHtml = imageMap[m.userId]
                     ? '<img src="' + imageMap[m.userId] + '" style="width:16px; height:16px; border-radius:50%; object-fit:cover; vertical-align:middle; margin-right:4px;">'
                     : '';
-                return '<div style="margin-bottom:4px;">' + avatarHtml + '<span style="font-weight:bold; ' + mine + '">' + escapeHtml(m.name) + ':</span> ' + escapeHtml(m.text) + '</div>';
+                return '<div style="margin-bottom:2px;">' + avatarHtml + '<span style="font-weight:bold; ' + mine + '">' + escapeHtml(m.name) + ':</span> ' + escapeHtml(m.text) + '</div>'
+                    + renderReactionBar('clanChat', m);
             }).join('') || '<div style="color:#666;">Noch keine Nachrichten.</div>';
             el.scrollTop = el.scrollHeight;
         } catch (e) {
@@ -2062,6 +2443,7 @@
     async function refreshClanBoard() {
         refreshWarStatus();
         refreshClanChat();
+        refreshClanTreasury();
         let noneEl = document.getElementById('clan-none');
         let activeEl = document.getElementById('clan-active');
         if (!noneEl || !activeEl) return;
@@ -2129,7 +2511,7 @@
                 }
                 avatarEl.className = 'dashboard-avatar ' + getAvatarBorderClass((data.attackPoints || 1) + (data.defensePoints || 1));
             }
-            renderAvatarFrame('profile-view-avatar-deco', (data.attackPoints || 1) + (data.defensePoints || 1));
+            renderAvatarFrame('profile-view-avatar-deco', (data.attackPoints || 1) + (data.defensePoints || 1), data.activeFrame || null);
             document.getElementById('profile-view-name').innerText = data.name || 'Unbekannt';
             document.getElementById('profile-view-rank').innerText = '🎖️ ' + getCombatRank((data.attackPoints || 1) + (data.defensePoints || 1));
             document.getElementById('profile-view-level').innerText = data.level || 1;
@@ -2195,13 +2577,14 @@
                     let prestigeTag = (e.prestige > 0) ? ('P' + e.prestige + ' ') : '';
                     let ogTag = e.ogPlayer ? '🎖️ ' : '';
                     let rankBadge = getCombatRankBadge((e.attackPoints || 1) + (e.defensePoints || 1));
+                    let cosmeticIcon = e.activeIcon && COSMETIC_ICONS[e.activeIcon] ? COSMETIC_ICONS[e.activeIcon].icon + ' ' : '';
                     let achv = (e.achievements != null) ? (' · 🏅' + e.achievements) : '';
                     let money = (e.money != null) ? (' · ' + e.money.toFixed(2) + ' €') : '';
                     let avatarHtml = imageMap[e.uid]
                         ? '<img src="' + imageMap[e.uid] + '" style="width:20px; height:20px; border-radius:50%; object-fit:cover; vertical-align:middle; margin-right:4px;">'
                         : '';
                     return '<div style="display:flex; justify-content:space-between; align-items:center; padding:2px 0; cursor:pointer; ' + highlight + '" onclick="viewPlayerProfile(\'' + e.uid + '\')">'
-                        + '<span>' + (i + 1) + '. ' + avatarHtml + ogTag + prestigeTag + (rankBadge ? rankBadge + ' ' : '') + escapeHtml(e.name) + '</span>'
+                        + '<span>' + (i + 1) + '. ' + avatarHtml + ogTag + prestigeTag + (rankBadge ? rankBadge + ' ' : '') + cosmeticIcon + escapeHtml(e.name) + '</span>'
                         + '<span>👊 ' + (e.reputation || 0) + ' · Lvl ' + e.level + achv + money + '</span>'
                         + '</div>';
                 }).join('');
@@ -2298,7 +2681,12 @@
         return '';
     }
 
-    function getFrameDecorations(totalPoints) {
+    function getFrameDecorations(totalPoints, overrideFrameId) {
+        let frameId = (overrideFrameId !== undefined) ? overrideFrameId : state.activeFrame;
+        if (frameId && COSMETIC_FRAMES[frameId]) {
+            let f = COSMETIC_FRAMES[frameId];
+            return { items: f.items, radius: f.radius, size: f.size, spin: f.spin };
+        }
         if (totalPoints >= 200) return { items: ['🍾', '🪙', '🍺', '💰', '🍾', '🪙', '🍺', '💰'], radius: 52, size: 16, spin: true };
         if (totalPoints >= 100) return { items: ['🍾', '🪙', '🍾', '🪙', '🍾', '🪙'], radius: 51, size: 15, spin: false };
         if (totalPoints >= 50) return { items: ['🍾', '🪙', '🍾', '🪙'], radius: 50, size: 14, spin: false };
@@ -2307,10 +2695,10 @@
         return { items: [], radius: 0, size: 0, spin: false };
     }
 
-    function renderAvatarFrame(decoContainerId, totalPoints) {
+    function renderAvatarFrame(decoContainerId, totalPoints, overrideFrameId) {
         let container = document.getElementById(decoContainerId);
         if (!container) return;
-        let config = getFrameDecorations(totalPoints);
+        let config = getFrameDecorations(totalPoints, overrideFrameId);
         container.innerHTML = '';
         container.className = config.spin ? 'avatar-deco-ring-spin' : '';
         let count = config.items.length;
@@ -2919,7 +3307,7 @@
     function getCombatPower() {
         let gear = EQUIPMENT.find(g => g.id === state.activeGear);
         let gearPower = gear ? gear.power * (1 + (state.gearUpgradeLevel || 0) * 0.15) : 0;
-        return 1 + gearPower + (state.attackPoints || 1) * 2 + (state.defensePoints || 1) * 1.5;
+        return (1 + gearPower + (state.attackPoints || 1) * 2 + (state.defensePoints || 1) * 1.5) * getFighterMultiplier();
     }
 
     let fightAutoMissTimeout = null;
@@ -3311,6 +3699,10 @@
         let repEl = document.getElementById('reputation-display');
         if (repEl) repEl.innerText = state.reputation || 0;
         renderBotOpponents();
+        renderSkillTree();
+        renderCosmeticShop();
+        updateAdBoostUI();
+        updateCombatIconDisplay();
 
         let fightBtn = document.getElementById('btn-fight');
         if (fightBtn) {
